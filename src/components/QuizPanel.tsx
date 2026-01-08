@@ -1,17 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle, XCircle, RotateCcw, Loader2, HelpCircle } from "lucide-react";
+import { CheckCircle, XCircle, RotateCcw, Loader2, HelpCircle, Trash2 } from "lucide-react";
 import { Quiz } from "@/lib/api";
 
 interface QuizCardProps {
   quiz: Quiz;
   index: number;
-  showAnswer: boolean;
   onAnswer: (isCorrect: boolean) => void;
 }
 
-function QuizCard({ quiz, index, showAnswer, onAnswer }: QuizCardProps) {
+export function QuizCard({ quiz, index, onAnswer }: QuizCardProps) {
   const [selected, setSelected] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
 
@@ -112,11 +111,13 @@ function QuizCard({ quiz, index, showAnswer, onAnswer }: QuizCardProps) {
 
 interface QuizPanelProps {
   quizzes: Quiz[];
-  onGenerateQuiz: (count: number) => Promise<void>;
+  onGenerateQuiz: () => Promise<void>;
+  onDeleteQuizzes: () => Promise<void>;
+  onShowConfig: () => void;
   isLoading: boolean;
 }
 
-export function QuizPanel({ quizzes, onGenerateQuiz, isLoading }: QuizPanelProps) {
+export function QuizPanel({ quizzes, onGenerateQuiz, onDeleteQuizzes, onShowConfig, isLoading }: QuizPanelProps) {
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [showResults, setShowResults] = useState(false);
 
@@ -136,9 +137,9 @@ export function QuizPanel({ quizzes, onGenerateQuiz, isLoading }: QuizPanelProps
     setShowResults(false);
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = () => {
     handleReset();
-    await onGenerateQuiz(5);
+    onShowConfig();
   };
 
   return (
@@ -151,25 +152,38 @@ export function QuizPanel({ quizzes, onGenerateQuiz, isLoading }: QuizPanelProps
             Test your understanding
           </p>
         </div>
-        <button
-          onClick={handleGenerate}
-          disabled={isLoading}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-colors text-sm font-medium"
-        >
-          {isLoading ? (
-            <>
-              <Loader2 size={14} className="sm:w-4 sm:h-4 animate-spin" />
-              <span className="hidden sm:inline">Generating...</span>
-              <span className="sm:hidden">Loading...</span>
-            </>
-          ) : (
-            <>
-              <RotateCcw size={14} className="sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Generate New Quiz</span>
-              <span className="sm:hidden">New Quiz</span>
-            </>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleGenerate}
+            disabled={isLoading}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-colors text-sm font-medium"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 size={14} className="sm:w-4 sm:h-4 animate-spin" />
+                <span className="hidden sm:inline">Generating...</span>
+                <span className="sm:hidden">Loading...</span>
+              </>
+            ) : (
+              <>
+                <RotateCcw size={14} className="sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Generate New Quiz</span>
+                <span className="sm:hidden">New Quiz</span>
+              </>
+            )}
+          </button>
+          {quizzes.length > 0 && (
+            <button
+              onClick={onDeleteQuizzes}
+              disabled={isLoading}
+              className="flex items-center justify-center gap-2 px-3 py-2 text-[var(--error)] border border-red-200 dark:border-red-900 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 transition-colors text-sm"
+              title="Delete Quizzes"
+            >
+              <Trash2 size={14} className="sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Delete</span>
+            </button>
           )}
-        </button>
+        </div>
       </div>
 
       {/* Quiz content */}
@@ -224,7 +238,6 @@ export function QuizPanel({ quizzes, onGenerateQuiz, isLoading }: QuizPanelProps
               key={quiz.id}
               quiz={quiz}
               index={index}
-              showAnswer={showResults}
               onAnswer={handleAnswer}
             />
           ))}

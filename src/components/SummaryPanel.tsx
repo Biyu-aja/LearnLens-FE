@@ -1,14 +1,15 @@
 "use client";
 
-import { Loader2, FileText, Sparkles } from "lucide-react";
+import { Loader2, FileText, Sparkles, Trash2 } from "lucide-react";
 
 interface SummaryPanelProps {
   summary: string | null;
   onGenerateSummary: () => Promise<void>;
+  onDeleteSummary: () => Promise<void>;
   isLoading: boolean;
 }
 
-export function SummaryPanel({ summary, onGenerateSummary, isLoading }: SummaryPanelProps) {
+export function SummaryPanel({ summary, onGenerateSummary, onDeleteSummary, isLoading }: SummaryPanelProps) {
   return (
     <div className="p-4 sm:p-6 overflow-y-auto h-full">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
@@ -19,23 +20,34 @@ export function SummaryPanel({ summary, onGenerateSummary, isLoading }: SummaryP
           </p>
         </div>
         {summary && (
-          <button
-            onClick={onGenerateSummary}
-            disabled={isLoading}
-            className="flex items-center justify-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 border border-[var(--border)] rounded-lg hover:bg-[var(--surface-hover)] disabled:opacity-50 transition-colors text-xs sm:text-sm"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 size={12} className="sm:w-[14px] sm:h-[14px] animate-spin" />
-                Regenerating...
-              </>
-            ) : (
-              <>
-                <Sparkles size={12} className="sm:w-[14px] sm:h-[14px]" />
-                Regenerate
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onGenerateSummary}
+              disabled={isLoading}
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 border border-[var(--border)] rounded-lg hover:bg-[var(--surface-hover)] disabled:opacity-50 transition-colors text-xs sm:text-sm"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 size={12} className="sm:w-[14px] sm:h-[14px] animate-spin" />
+                  Regenerating...
+                </>
+              ) : (
+                <>
+                  <Sparkles size={12} className="sm:w-[14px] sm:h-[14px]" />
+                  Regenerate
+                </>
+              )}
+            </button>
+            <button
+              onClick={onDeleteSummary}
+              disabled={isLoading}
+              className="flex items-center justify-center gap-2 px-3 py-1.5 sm:py-2 text-[var(--error)] border border-red-200 dark:border-red-900 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 transition-colors text-xs sm:text-sm"
+              title="Delete Summary"
+            >
+              <Trash2 size={12} className="sm:w-[14px] sm:h-[14px]" />
+              <span className="hidden sm:inline">Delete</span>
+            </button>
+          </div>
         )}
       </div>
 

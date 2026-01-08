@@ -18,6 +18,7 @@ import { QuizPanel } from "@/components/QuizPanel";
 import { MaterialUpload } from "@/components/MaterialUpload";
 import { EditMaterialModal } from "@/components/EditMaterialModal";
 import { SettingsModal } from "@/components/SettingsModal";
+import { QuizConfigModal, QuizConfig } from "@/components/QuizConfigModal";
 import { materialsAPI, chatAPI, aiAPI, Material, MaterialSummary, Message, Quiz } from "@/lib/api";
 
 type Tab = "chat" | "summary" | "quiz";
@@ -39,6 +40,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
   const [showUpload, setShowUpload] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [showQuizConfig, setShowQuizConfig] = useState(false);
 
   // Redirect to home if not logged in
   useEffect(() => {
@@ -116,10 +118,16 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
   };
 
   const handleGenerateSummary = async () => {
+    // If already has summary, just switch to tab
+    if (material?.summary) {
+      setActiveTab("summary");
+      return;
+    }
     setIsSummaryLoading(true);
     try {
       const response = await materialsAPI.generateSummary(id);
       setMaterial((prev) => prev ? { ...prev, summary: response.summary } : null);
+      setActiveTab("summary");
     } catch (error) {
       console.error("Failed to generate summary:", error);
     } finally {
@@ -127,11 +135,28 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
     }
   };
 
-  const handleGenerateQuiz = async (count: number) => {
+  const handleGenerateQuiz = async () => {
+    // If already has quiz, just switch to tab
+    if (quizzes.length > 0) {
+      setActiveTab("quiz");
+      return;
+    }
+    // Show config modal for new quiz
+    setShowQuizConfig(true);
+  };
+
+  const handleQuizConfigGenerate = async (config: QuizConfig) => {
     setIsQuizLoading(true);
     try {
-      const response = await aiAPI.generateQuiz(id, count);
+      const response = await aiAPI.generateQuiz(id, {
+        count: config.questionCount,
+        difficulty: config.difficulty,
+        model: config.model,
+        materialIds: config.materialIds,
+        customText: config.customText,
+      });
       setQuizzes(response.quizzes);
+      setActiveTab("quiz");
     } catch (error) {
       console.error("Failed to generate quiz:", error);
     } finally {
@@ -147,6 +172,30 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
       router.push("/dashboard");
     } catch (error) {
       console.error("Failed to delete material:", error);
+    }
+  };
+
+  const handleDeleteSummary = async () => {
+    if (!confirm("Are you sure you want to delete this summary?")) return;
+    
+    try {
+      await materialsAPI.deleteSummary(id);
+      setMaterial((prev) => prev ? { ...prev, summary: undefined } : null);
+      setActiveTab("chat");
+    } catch (error) {
+      console.error("Failed to delete summary:", error);
+    }
+  };
+
+  const handleDeleteQuizzes = async () => {
+    if (!confirm("Are you sure you want to delete all quizzes?")) return;
+    
+    try {
+      await materialsAPI.deleteQuizzes(id);
+      setQuizzes([]);
+      setActiveTab("chat");
+    } catch (error) {
+      console.error("Failed to delete quizzes:", error);
     }
   };
 
@@ -172,11 +221,18 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
     );
   }
 
-  const tabs = [
-    { id: "chat" as Tab, label: "Chat", icon: MessageSquare },
-    { id: "summary" as Tab, label: "Summary", icon: FileText },
-    { id: "quiz" as Tab, label: "Quiz", icon: HelpCircle },
+  // Dynamic tabs - only show Summary/Quiz if content exists
+  const tabs: { id: Tab; label: string; icon: typeof MessageSquare }[] = [
+    { id: "chat", label: "Chat", icon: MessageSquare },
   ];
+  
+  if (material.summary) {
+    tabs.push({ id: "summary", label: "Summary", icon: FileText });
+  }
+  
+  if (quizzes.length > 0) {
+    tabs.push({ id: "quiz", label: "Quiz", icon: HelpCircle });
+  }
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
@@ -218,33 +274,35 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
             </button>
           </div>
 
-          {/* Tabs */}
-          <div className="px-2 sm:px-6 flex gap-0.5 sm:gap-1 overflow-x-auto">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? "border-[var(--primary)] text-[var(--primary)]"
-                    : "border-transparent text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
-                }`}
-              >
-                <tab.icon size={14} className="sm:w-4 sm:h-4" />
-                <span className="hidden xs:inline sm:inline">{tab.label}</span>
-                {tab.id === "chat" && messages.length > 0 && (
-                  <span className="px-1 sm:px-1.5 py-0.5 text-[10px] sm:text-xs bg-[var(--primary-light)] text-[var(--primary)] rounded-full">
-                    {messages.length}
-                  </span>
-                )}
-                {tab.id === "quiz" && quizzes.length > 0 && (
-                  <span className="px-1 sm:px-1.5 py-0.5 text-[10px] sm:text-xs bg-[var(--primary-light)] text-[var(--primary)] rounded-full">
-                    {quizzes.length}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
+          {/* Tabs - Only show if more than just Chat */}
+          {tabs.length > 1 && (
+            <div className="px-2 sm:px-6 flex gap-0.5 sm:gap-1 overflow-x-auto">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? "border-[var(--primary)] text-[var(--primary)]"
+                      : "border-transparent text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                  }`}
+                >
+                  <tab.icon size={14} className="sm:w-4 sm:h-4" />
+                  <span className="hidden xs:inline sm:inline">{tab.label}</span>
+                  {tab.id === "chat" && messages.length > 0 && (
+                    <span className="px-1 sm:px-1.5 py-0.5 text-[10px] sm:text-xs bg-[var(--primary-light)] text-[var(--primary)] rounded-full">
+                      {messages.length}
+                    </span>
+                  )}
+                  {tab.id === "quiz" && quizzes.length > 0 && (
+                    <span className="px-1 sm:px-1.5 py-0.5 text-[10px] sm:text-xs bg-[var(--primary-light)] text-[var(--primary)] rounded-full">
+                      {quizzes.length}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </header>
 
         {/* Tab content */}
@@ -257,19 +315,28 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
               isLoading={isChatLoading}
               onEditMaterial={() => setShowEdit(true)}
               onOpenSettings={() => setIsSettingsOpen(true)}
+              onGenerateSummary={handleGenerateSummary}
+              onGenerateQuiz={handleGenerateQuiz}
+              isSummaryLoading={isSummaryLoading}
+              isQuizLoading={isQuizLoading}
+              hasSummary={!!material.summary}
+              hasQuiz={quizzes.length > 0}
             />
           )}
           {activeTab === "summary" && (
             <SummaryPanel
               summary={material.summary || null}
               onGenerateSummary={handleGenerateSummary}
+              onDeleteSummary={handleDeleteSummary}
               isLoading={isSummaryLoading}
             />
           )}
           {activeTab === "quiz" && (
             <QuizPanel
               quizzes={quizzes}
-              onGenerateQuiz={handleGenerateQuiz}
+              onGenerateQuiz={() => handleGenerateQuiz()}
+              onDeleteQuizzes={handleDeleteQuizzes}
+              onShowConfig={() => setShowQuizConfig(true)}
               isLoading={isQuizLoading}
             />
           )}
@@ -300,6 +367,17 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
       />
+
+      {/* Quiz Config Modal */}
+      {material && (
+        <QuizConfigModal
+          isOpen={showQuizConfig}
+          onClose={() => setShowQuizConfig(false)}
+          onGenerate={handleQuizConfigGenerate}
+          currentMaterialId={material.id}
+          currentMaterialTitle={material.title}
+        />
+      )}
     </div>
   );
 }

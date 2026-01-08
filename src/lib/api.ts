@@ -142,6 +142,16 @@ export const materialsAPI = {
         fetchAPI<{ success: boolean }>(`/api/materials/${id}`, {
             method: "DELETE",
         }),
+
+    deleteSummary: (id: string) =>
+        fetchAPI<{ success: boolean }>(`/api/materials/${id}/summary`, {
+            method: "DELETE",
+        }),
+
+    deleteQuizzes: (id: string) =>
+        fetchAPI<{ success: boolean }>(`/api/materials/${id}/quizzes`, {
+            method: "DELETE",
+        }),
 };
 
 // Chat API
@@ -169,10 +179,16 @@ export const aiAPI = {
     getConcepts: (materialId: string) =>
         fetchAPI<{ success: boolean; concepts: string }>(`/api/ai/${materialId}/concepts`),
 
-    generateQuiz: (materialId: string, count: number = 5) =>
+    generateQuiz: (materialId: string, config: {
+        count?: number;
+        difficulty?: "easy" | "medium" | "hard";
+        model?: string;
+        materialIds?: string[];
+        customText?: string;
+    } = {}) =>
         fetchAPI<{ success: boolean; quizzes: Quiz[] }>(`/api/ai/${materialId}/quiz`, {
             method: "POST",
-            body: JSON.stringify({ count }),
+            body: JSON.stringify(config),
         }),
 
     getQuizzes: (materialId: string) =>

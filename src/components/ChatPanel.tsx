@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Trash2, Settings, Edit, ChevronDown, Check } from "lucide-react";
-import { Message, authAPI, AIModel } from "@/lib/api";
+import { Send, Loader2, Trash2, Settings, Edit, ChevronDown, FileText, HelpCircle, Sparkles } from "lucide-react";
+import { Message } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { SettingsModal } from "./SettingsModal";
 
 interface ChatPanelProps {
   messages: Message[];
@@ -13,6 +12,12 @@ interface ChatPanelProps {
   isLoading: boolean;
   onEditMaterial?: () => void;
   onOpenSettings: () => void;
+  onGenerateSummary: () => Promise<void>;
+  onGenerateQuiz: () => Promise<void>;
+  isSummaryLoading: boolean;
+  isQuizLoading: boolean;
+  hasSummary: boolean;
+  hasQuiz: boolean;
 }
 
 export function ChatPanel({ 
@@ -21,7 +26,13 @@ export function ChatPanel({
   onClearHistory,
   isLoading,
   onEditMaterial,
-  onOpenSettings
+  onOpenSettings,
+  onGenerateSummary,
+  onGenerateQuiz,
+  isSummaryLoading,
+  isQuizLoading,
+  hasSummary,
+  hasQuiz
 }: ChatPanelProps) {
   const { user } = useAuth();
   const [input, setInput] = useState("");
@@ -151,6 +162,45 @@ export function ChatPanel({
         )}
         
         <div ref={messagesEndRef} />
+      </div>
+
+      {/* Quick Actions */}
+      <div className="px-4 pb-2 flex gap-2 flex-wrap">
+        <button
+          onClick={onGenerateSummary}
+          disabled={isSummaryLoading || isQuizLoading}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
+            hasSummary 
+              ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400"
+              : "bg-[var(--background)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+          } disabled:opacity-50`}
+        >
+          {isSummaryLoading ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <FileText size={14} />
+          )}
+          <span>{hasSummary ? "View Summary" : "Generate Summary"}</span>
+          {hasSummary && <Sparkles size={12} className="text-emerald-500" />}
+        </button>
+
+        <button
+          onClick={onGenerateQuiz}
+          disabled={isSummaryLoading || isQuizLoading}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
+            hasQuiz 
+              ? "bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-400"
+              : "bg-[var(--background)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+          } disabled:opacity-50`}
+        >
+          {isQuizLoading ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <HelpCircle size={14} />
+          )}
+          <span>{hasQuiz ? "View Quiz" : "Generate Quiz"}</span>
+          {hasQuiz && <Sparkles size={12} className="text-purple-500" />}
+        </button>
       </div>
 
       {/* Input */}
