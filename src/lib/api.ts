@@ -193,6 +193,21 @@ export const aiAPI = {
 
     getQuizzes: (materialId: string) =>
         fetchAPI<{ success: boolean; quizzes: Quiz[] }>(`/api/ai/${materialId}/quiz`),
+
+    // Glossary
+    generateGlossary: (materialId: string, model?: string) =>
+        fetchAPI<{ success: boolean; glossary: GlossaryTerm[] }>(`/api/ai/${materialId}/glossary`, {
+            method: "POST",
+            body: JSON.stringify({ model }),
+        }),
+
+    getGlossary: (materialId: string) =>
+        fetchAPI<{ success: boolean; glossary: GlossaryTerm[] }>(`/api/ai/${materialId}/glossary`),
+
+    deleteGlossary: (materialId: string) =>
+        fetchAPI<{ success: boolean }>(`/api/ai/${materialId}/glossary`, {
+            method: "DELETE",
+        }),
 };
 
 // Types
@@ -231,6 +246,7 @@ export interface Material {
     content: string;
     type: string;
     summary?: string;
+    glossary?: GlossaryTerm[];
     createdAt: string;
     updatedAt: string;
     messages: Message[];
@@ -250,4 +266,10 @@ export interface Quiz {
     options: string[];
     answer: number;
     createdAt: string;
+}
+
+export interface GlossaryTerm {
+    term: string;
+    definition: string;
+    category?: string;
 }

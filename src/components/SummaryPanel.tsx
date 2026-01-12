@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2, FileText, Sparkles, Trash2 } from "lucide-react";
+import { FormattedAIContent } from "@/lib/format-ai-response";
 
 interface SummaryPanelProps {
   summary: string | null;
@@ -54,7 +55,7 @@ export function SummaryPanel({ summary, onGenerateSummary, onDeleteSummary, isLo
       {summary ? (
         <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 sm:p-6">
           <div className="markdown-content whitespace-pre-wrap text-sm sm:text-base">
-            {summary}
+            <FormattedAIContent content={summary} />
           </div>
         </div>
       ) : (

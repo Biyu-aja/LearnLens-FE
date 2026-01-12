@@ -8,20 +8,22 @@ import {
   FileText, 
   HelpCircle, 
   ArrowLeft, 
-  Trash2
+  Trash2,
+  Book
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatPanel } from "@/components/ChatPanel";
 import { SummaryPanel } from "@/components/SummaryPanel";
 import { QuizPanel } from "@/components/QuizPanel";
+import { GlossaryPanel } from "@/components/GlossaryPanel";
 import { MaterialUpload } from "@/components/MaterialUpload";
 import { EditMaterialModal } from "@/components/EditMaterialModal";
 import { SettingsModal } from "@/components/SettingsModal";
 import { QuizConfigModal, QuizConfig } from "@/components/QuizConfigModal";
-import { materialsAPI, chatAPI, aiAPI, Material, MaterialSummary, Message, Quiz } from "@/lib/api";
+import { materialsAPI, chatAPI, aiAPI, Material, MaterialSummary, Message, Quiz, GlossaryTerm } from "@/lib/api";
 
-type Tab = "chat" | "summary" | "quiz";
+type Tab = "chat" | "summary" | "quiz" | "glossary";
 
 export default function MaterialPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -32,11 +34,13 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
   const [materials, setMaterials] = useState<MaterialSummary[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [glossary, setGlossary] = useState<GlossaryTerm[] | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("chat");
   const [isLoading, setIsLoading] = useState(true);
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [isQuizLoading, setIsQuizLoading] = useState(false);
+  const [isGlossaryLoading, setIsGlossaryLoading] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -54,6 +58,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
     if (user && id) {
       fetchMaterial();
       fetchMaterials();
+      fetchGlossary();
     }
   }, [user, id]);
 
@@ -77,6 +82,15 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
       setMaterials(response.materials);
     } catch (error) {
       console.error("Failed to fetch materials:", error);
+    }
+  };
+
+  const fetchGlossary = async () => {
+    try {
+      const response = await aiAPI.getGlossary(id);
+      setGlossary(response.glossary.length > 0 ? response.glossary : null);
+    } catch (error) {
+      console.error("Failed to fetch glossary:", error);
     }
   };
 
@@ -205,6 +219,31 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
     router.push(`/material/${response.material.id}`);
   };
 
+  const handleGenerateGlossary = async () => {
+    setIsGlossaryLoading(true);
+    try {
+      const response = await aiAPI.generateGlossary(id);
+      setGlossary(response.glossary);
+      setActiveTab("glossary");
+    } catch (error) {
+      console.error("Failed to generate glossary:", error);
+    } finally {
+      setIsGlossaryLoading(false);
+    }
+  };
+
+  const handleDeleteGlossary = async () => {
+    if (!confirm("Are you sure you want to delete this glossary?")) return;
+    
+    try {
+      await aiAPI.deleteGlossary(id);
+      setGlossary(null);
+      setActiveTab("chat");
+    } catch (error) {
+      console.error("Failed to delete glossary:", error);
+    }
+  };
+
   if (authLoading || isLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -221,7 +260,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
     );
   }
 
-  // Dynamic tabs - only show Summary/Quiz if content exists
+  // Dynamic tabs - only show Summary/Quiz/Glossary if content exists
   const tabs: { id: Tab; label: string; icon: typeof MessageSquare }[] = [
     { id: "chat", label: "Chat", icon: MessageSquare },
   ];
@@ -232,6 +271,10 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
   
   if (quizzes.length > 0) {
     tabs.push({ id: "quiz", label: "Quiz", icon: HelpCircle });
+  }
+
+  if (glossary && glossary.length > 0) {
+    tabs.push({ id: "glossary", label: "Glossary", icon: Book });
   }
 
   return (
@@ -317,10 +360,13 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
               onOpenSettings={() => setIsSettingsOpen(true)}
               onGenerateSummary={handleGenerateSummary}
               onGenerateQuiz={handleGenerateQuiz}
+              onGenerateGlossary={handleGenerateGlossary}
               isSummaryLoading={isSummaryLoading}
               isQuizLoading={isQuizLoading}
+              isGlossaryLoading={isGlossaryLoading}
               hasSummary={!!material.summary}
               hasQuiz={quizzes.length > 0}
+              hasGlossary={glossary !== null && glossary.length > 0}
             />
           )}
           {activeTab === "summary" && (
@@ -338,6 +384,14 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
               onDeleteQuizzes={handleDeleteQuizzes}
               onShowConfig={() => setShowQuizConfig(true)}
               isLoading={isQuizLoading}
+            />
+          )}
+          {activeTab === "glossary" && (
+            <GlossaryPanel
+              glossary={glossary}
+              onGenerateGlossary={handleGenerateGlossary}
+              onDeleteGlossary={handleDeleteGlossary}
+              isLoading={isGlossaryLoading}
             />
           )}
         </div>
