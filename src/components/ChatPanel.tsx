@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Trash2, Settings, Edit, ChevronDown, FileText, HelpCircle, Book, Sparkles } from "lucide-react";
+import { Send, Loader2, Trash2, Settings, Edit, ChevronDown, FileText, HelpCircle, Book, Sparkles, Square } from "lucide-react";
 import { Message } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { FormattedAIContent } from "@/lib/format-ai-response";
@@ -13,7 +13,9 @@ interface ChatPanelProps {
   onSendMessage: (message: string) => Promise<void>;
   onClearHistory: () => Promise<void>;
   onDeleteMessage?: (messageId: string) => Promise<void>;
+  onRegenerateFromMessage?: (messageIndex: number, userMessage: string) => Promise<void>;
   isLoading: boolean;
+  onStopGeneration?: () => void;
   onEditMaterial?: () => void;
   onOpenSettings: () => void;
   onGenerateSummary: () => Promise<void>;
@@ -33,7 +35,9 @@ export function ChatPanel({
   onSendMessage, 
   onClearHistory,
   onDeleteMessage,
+  onRegenerateFromMessage,
   isLoading,
+  onStopGeneration,
   onEditMaterial,
   onOpenSettings,
   onGenerateSummary,
@@ -58,6 +62,7 @@ export function ChatPanel({
     messageId: string;
     messageContent: string;
     messageRole: "user" | "assistant";
+    messageIndex: number;
     position: { x: number; y: number };
   } | null>(null);
 
@@ -102,7 +107,14 @@ export function ChatPanel({
     if (!input.trim() || isLoading) return;
     const message = input.trim();
     setInput("");
+    
+    // Keep focus on input after sending
+    inputRef.current?.focus();
+    
     await onSendMessage(message);
+    
+    // Refocus after message is sent (in case focus was lost during async operation)
+    inputRef.current?.focus();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -115,7 +127,8 @@ export function ChatPanel({
   // Handle message context menu
   const handleMessageClick = (
     e: React.MouseEvent,
-    message: Message
+    message: Message,
+    index: number
   ) => {
     // Prevent context menu if user is selecting text
     const selection = window.getSelection();
@@ -128,13 +141,14 @@ export function ChatPanel({
         messageId: message.id,
         messageContent: message.content,
         messageRole: message.role as "user" | "assistant",
+        messageIndex: index,
         position: { x: e.clientX, y: e.clientY },
       });
     }
   };
 
   // Mobile long press handlers
-  const handleTouchStart = (message: Message) => {
+  const handleTouchStart = (message: Message, index: number) => {
     longPressTriggered.current = false;
     longPressTimer.current = setTimeout(() => {
       longPressTriggered.current = true;
@@ -147,7 +161,8 @@ export function ChatPanel({
           messageId: message.id,
           messageContent: message.content,
           messageRole: message.role as "user" | "assistant",
-          position: { x: window.innerWidth / 2 - 80, y: window.innerHeight / 2 - 50 },
+          messageIndex: index,
+          position: { x: window.innerWidth / 2 - 90, y: window.innerHeight / 2 - 80 },
         });
       }
     }, 500); // 500ms long press
@@ -170,6 +185,33 @@ export function ChatPanel({
   const handleDeleteFromMenu = async (messageId: string) => {
     if (onDeleteMessage) {
       await onDeleteMessage(messageId);
+    }
+    setContextMenu(null);
+  };
+
+  const handleRegenerateFromMenu = async (messageId: string, messageIndex: number) => {
+    if (onRegenerateFromMessage) {
+      // Find the user message that triggered this
+      // If this is an assistant message, get the previous user message
+      // If this is a user message, use this message
+      const targetMessage = messages[messageIndex];
+      let userMessage: string;
+      
+      if (targetMessage.role === "user") {
+        userMessage = targetMessage.content;
+      } else {
+        // Find the previous user message
+        const prevUserIndex = messageIndex - 1;
+        if (prevUserIndex >= 0 && messages[prevUserIndex].role === "user") {
+          userMessage = messages[prevUserIndex].content;
+        } else {
+          // Fallback - shouldn't happen normally
+          console.error("Could not find user message for regeneration");
+          return;
+        }
+      }
+      
+      await onRegenerateFromMessage(messageIndex, userMessage);
     }
     setContextMenu(null);
   };
@@ -247,41 +289,75 @@ export function ChatPanel({
             </p>
           </div>
         ) : (
-          messages.map((message, index) => (
-            <div
-              key={message.id || index}
-              className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} fade-in`}
-            >
+          messages.map((message, index) => {
+            // Check if this is the loading state (streaming with "...")
+            const isLoadingDots = message.id?.startsWith("streaming-") && message.content === "...";
+            
+            // If it's the loading dots, render without bubble
+            if (isLoadingDots) {
+              return (
+                <div
+                  key={message.id || index}
+                  className="flex justify-start fade-in"
+                >
+                  <div className="px-4 py-3">
+                    <div className="flex items-center gap-1.5 text-[var(--foreground-muted)]">
+                      <span className="w-2 h-2 bg-current rounded-full animate-bounce opacity-60" style={{ animationDelay: "0ms" }}></span>
+                      <span className="w-2 h-2 bg-current rounded-full animate-bounce opacity-60" style={{ animationDelay: "150ms" }}></span>
+                      <span className="w-2 h-2 bg-current rounded-full animate-bounce opacity-60" style={{ animationDelay: "300ms" }}></span>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            
+            return (
               <div
-                className={`max-w-[85%] sm:max-w-[80%] px-4 py-3 rounded-2xl cursor-pointer select-text ${
-                  message.role === "user"
-                    ? "bg-[var(--primary)] text-white rounded-br-md"
-                    : "bg-[var(--assistant-bubble)] border border-[var(--border)] rounded-bl-md"
-                }`}
-                onClick={(e) => handleMessageClick(e, message)}
-                onContextMenu={(e) => handleMessageClick(e, message)}
-                onTouchStart={() => handleTouchStart(message)}
-                onTouchEnd={handleTouchEnd}
-                onTouchMove={handleTouchMove}
+                key={message.id || index}
+                className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} fade-in`}
               >
-                <div className="markdown-content text-sm whitespace-pre-wrap">
-                  {message.role === "assistant" ? (
-                    <FormattedAIContent content={message.content} />
-                  ) : (
-                    message.content
-                  )}
+                <div
+                  className={`max-w-[85%] sm:max-w-[80%] px-4 py-3 rounded-2xl cursor-pointer select-text ${
+                    message.role === "user"
+                      ? "bg-[var(--primary)] text-white rounded-br-md"
+                      : "bg-[var(--assistant-bubble)] border border-[var(--border)] rounded-bl-md"
+                  }`}
+                  onClick={(e) => handleMessageClick(e, message, index)}
+                  onContextMenu={(e) => handleMessageClick(e, message, index)}
+                  onTouchStart={() => handleTouchStart(message, index)}
+                  onTouchEnd={handleTouchEnd}
+                  onTouchMove={handleTouchMove}
+                >
+                  <div className={`markdown-content text-sm whitespace-pre-wrap ${
+                    message.id?.startsWith("streaming-") && isLoading ? "streaming-cursor" : ""
+                  }`}>
+                    {message.role === "assistant" ? (
+                      message.id?.startsWith("streaming-") && message.content ? (
+                        // Show raw content for streaming - FormattedAIContent can cause issues with partial markdown
+                        <span>{message.content}</span>
+                      ) : (
+                        <FormattedAIContent content={message.content} />
+                      )
+                    ) : (
+                      message.content
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
         
-        {isLoading && (
+        {/* Show typing indicator only if loading AND no streaming message exists */}
+        {isLoading && !messages.some(m => m.id?.startsWith("streaming-")) && (
           <div className="flex justify-start fade-in">
             <div className="bg-[var(--assistant-bubble)] border border-[var(--border)] px-4 py-3 rounded-2xl rounded-bl-md">
               <div className="flex items-center gap-2 text-[var(--foreground-muted)]">
-                <Loader2 size={16} className="animate-spin" />
-                <span className="text-sm">Thinking...</span>
+                <div className="flex gap-1">
+                  <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
+                  <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
+                  <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
+                </div>
               </div>
             </div>
           </div>
@@ -296,7 +372,10 @@ export function ChatPanel({
           messageId={contextMenu.messageId}
           messageContent={contextMenu.messageContent}
           messageRole={contextMenu.messageRole}
+          messageIndex={contextMenu.messageIndex}
+          totalMessages={messages.length}
           onDelete={onDeleteMessage ? handleDeleteFromMenu : undefined}
+          onRegenerate={onRegenerateFromMessage ? handleRegenerateFromMenu : undefined}
           onClose={() => setContextMenu(null)}
           position={contextMenu.position}
         />
@@ -369,18 +448,28 @@ export function ChatPanel({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={`Ask ${currentModelName}...`}
+            placeholder={isLoading ? "AI is generating..." : `Ask ${currentModelName}...`}
             rows={1}
             className="flex-1 px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm max-h-[150px]"
-            disabled={isLoading}
           />
-          <button
-            type="submit"
-            disabled={!input.trim() || isLoading}
-            className="p-3 bg-[var(--primary)] text-white rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0 shadow-sm"
-          >
-            {isLoading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
-          </button>
+          {isLoading ? (
+            <button
+              type="button"
+              onClick={onStopGeneration}
+              className="p-3 bg-[var(--error)] text-white rounded-xl hover:opacity-90 transition-colors shrink-0 shadow-sm"
+              title="Stop generation"
+            >
+              <Square size={20} fill="currentColor" />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={!input.trim()}
+              className="p-3 bg-[var(--primary)] text-white rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0 shadow-sm"
+            >
+              <Send size={20} />
+            </button>
+          )}
         </div>
         <p className="hidden sm:block text-xs text-[var(--foreground-muted)] text-center mt-2 opacity-70">
           Press Enter to send, Shift+Enter for new line

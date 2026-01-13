@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { 
   Loader2, 
@@ -45,6 +45,9 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
   const [showEdit, setShowEdit] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showQuizConfig, setShowQuizConfig] = useState(false);
+
+  // AbortController for stopping stream
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Redirect to home if not logged in
   useEffect(() => {
@@ -95,29 +98,93 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
   };
 
   const handleSendMessage = async (message: string) => {
-    const tempId = `temp-${Date.now()}`;
-    const optimisticUserMsg: Message = {
-      id: tempId,
-      role: "user",
-      content: message,
-      createdAt: new Date().toISOString(),
-    };
-
+    // Create IDs for optimistic messages
+    const optimisticUserMsgId = `user-${Date.now()}`;
+    const streamingMsgId = `streaming-${Date.now()}`;
+    
+    // Immediately add user message (optimistic) and assistant placeholder with "..."
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: optimisticUserMsgId,
+        role: "user" as const,
+        content: message,
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: streamingMsgId,
+        role: "assistant" as const,
+        content: "...",
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    
     setIsChatLoading(true);
-    setMessages((prev) => [...prev, optimisticUserMsg]);
+
+    // Create abort controller for this request
+    abortControllerRef.current = new AbortController();
 
     try {
-      const response = await chatAPI.sendMessage(id, message);
-      setMessages((prev) => {
-        // Remove optimistic message and add real ones
-        const filtered = prev.filter((m) => m.id !== tempId);
-        return [...filtered, response.userMessage, response.assistantMessage];
-      });
+      let streamContent = "";
+      let realUserMessageId: string | null = null;
+      
+      await chatAPI.sendMessageStream(
+        id,
+        message,
+        // On each chunk
+        (chunk: string) => {
+          streamContent += chunk;
+          setMessages((prev) => 
+            prev.map((m) =>
+              m.id === streamingMsgId ? { ...m, content: streamContent } : m
+            )
+          );
+        },
+        // On user message received from server (replace optimistic with real)
+        (userMessage: Message) => {
+          realUserMessageId = userMessage.id;
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === optimisticUserMsgId ? userMessage : m
+            )
+          );
+        },
+        // On complete
+        (assistantMessage: Message) => {
+          // Replace streaming message with final message
+          setMessages((prev) =>
+            prev.map((m) => (m.id === streamingMsgId ? assistantMessage : m))
+          );
+          setIsChatLoading(false);
+        },
+        // On error
+        (error: string) => {
+          console.error("Stream error:", error);
+          // Remove optimistic user message and streaming message on error
+          setMessages((prev) => prev.filter((m) => 
+            m.id !== streamingMsgId && m.id !== optimisticUserMsgId
+          ));
+          setIsChatLoading(false);
+        },
+        // Abort signal
+        abortControllerRef.current?.signal
+      );
     } catch (error) {
       console.error("Failed to send message:", error);
-      // Rollback on error
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      // Remove optimistic messages on error
+      setMessages((prev) => prev.filter((m) => 
+        !m.id.startsWith("user-") && !m.id.startsWith("streaming-")
+      ));
+      setIsChatLoading(false);
     } finally {
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleStopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
       setIsChatLoading(false);
     }
   };
@@ -139,6 +206,100 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
     } catch (error) {
       console.error("Failed to delete message:", error);
+    }
+  };
+
+  const handleRegenerateFromMessage = async (messageIndex: number, userMessage: string) => {
+    // Get the message at this index
+    const targetMessage = messages[messageIndex];
+    
+    // Determine where to start deleting and regenerating from
+    let deleteFromIndex: number;
+    if (targetMessage.role === "user") {
+      // If user message, delete from this message onwards
+      deleteFromIndex = messageIndex;
+    } else {
+      // If assistant message, delete from the previous user message onwards
+      deleteFromIndex = messageIndex - 1;
+      if (deleteFromIndex < 0) deleteFromIndex = 0;
+    }
+    
+    // Get messages to delete (from deleteFromIndex to end)
+    const messagesToDelete = messages.slice(deleteFromIndex);
+    
+    // Delete messages from backend
+    try {
+      for (const msg of messagesToDelete) {
+        if (msg.id) {
+          await materialsAPI.deleteMessage(id, msg.id);
+        }
+      }
+      
+      // Update local state - remove deleted messages
+      const remainingMessages = messages.slice(0, deleteFromIndex);
+      
+      // Create IDs for optimistic messages
+      const optimisticUserMsgId = `user-${Date.now()}`;
+      const streamingMsgId = `streaming-${Date.now()}`;
+      
+      // Immediately add user message (optimistic) and assistant placeholder with "..."
+      setMessages([
+        ...remainingMessages,
+        {
+          id: optimisticUserMsgId,
+          role: "user" as const,
+          content: userMessage,
+          createdAt: new Date().toISOString(),
+        },
+        {
+          id: streamingMsgId,
+          role: "assistant" as const,
+          content: "...",
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+      
+      setIsChatLoading(true);
+      
+      let streamContent = "";
+      
+      await chatAPI.sendMessageStream(
+        id,
+        userMessage,
+        (chunk: string) => {
+          streamContent += chunk;
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === streamingMsgId ? { ...m, content: streamContent } : m
+            )
+          );
+        },
+        (newUserMessage: Message) => {
+          // Replace optimistic user message with real one
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === optimisticUserMsgId ? newUserMessage : m
+            )
+          );
+        },
+        (assistantMessage: Message) => {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === streamingMsgId ? assistantMessage : m))
+          );
+          setIsChatLoading(false);
+        },
+        (error: string) => {
+          console.error("Regenerate stream error:", error);
+          // Remove optimistic messages on error
+          setMessages((prev) => prev.filter((m) => 
+            m.id !== streamingMsgId && m.id !== optimisticUserMsgId
+          ));
+          setIsChatLoading(false);
+        }
+      );
+    } catch (error) {
+      console.error("Failed to regenerate:", error);
+      setIsChatLoading(false);
     }
   };
 
@@ -387,7 +548,9 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
               onSendMessage={handleSendMessage}
               onClearHistory={handleClearChat}
               onDeleteMessage={handleDeleteMessage}
+              onRegenerateFromMessage={handleRegenerateFromMessage}
               isLoading={isChatLoading}
+              onStopGeneration={handleStopGeneration}
               onEditMaterial={() => setShowEdit(true)}
               onOpenSettings={() => setIsSettingsOpen(true)}
               onGenerateSummary={handleGenerateSummary}

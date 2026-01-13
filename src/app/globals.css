@@ -459,20 +459,84 @@ body {
 
 .ai-formatted-response table {
   width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 1em;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 1em 0;
+  font-size: 0.875em;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+/* Table wrapper for horizontal scroll on mobile */
+.ai-formatted-response .table-wrapper {
+  overflow-x: auto;
+  margin: 1em 0;
+  border-radius: 8px;
 }
 
 .ai-formatted-response th,
 .ai-formatted-response td {
-  border: 1px solid var(--border);
-  padding: 0.5em 0.75em;
+  padding: 0.75em 1em;
   text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border);
 }
 
+/* Header styling with gradient */
 .ai-formatted-response th {
-  background: var(--surface-hover);
+  background: linear-gradient(135deg, var(--surface-hover) 0%, var(--background-secondary) 100%);
   font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* First header cell rounded top-left */
+.ai-formatted-response th:first-child {
+  border-top-left-radius: 7px;
+}
+
+/* Last header cell rounded top-right */
+.ai-formatted-response th:last-child {
+  border-top-right-radius: 7px;
+}
+
+/* Body cells */
+.ai-formatted-response td {
+  background: var(--surface);
+}
+
+/* Zebra striping - alternate row colors */
+.ai-formatted-response tbody tr:nth-child(even) td {
+  background: var(--background);
+}
+
+/* Hover effect on rows */
+.ai-formatted-response tbody tr:hover td {
+  background: var(--primary-light);
+}
+
+/* Last row - rounded bottom corners */
+.ai-formatted-response tbody tr:last-child td:first-child {
+  border-bottom-left-radius: 7px;
+}
+
+.ai-formatted-response tbody tr:last-child td:last-child {
+  border-bottom-right-radius: 7px;
+}
+
+/* Remove bottom border from last row */
+.ai-formatted-response tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Right border for cells except last */
+.ai-formatted-response th:not(:last-child),
+.ai-formatted-response td:not(:last-child) {
+  border-right: 1px solid var(--border);
 }
 
 /* Highlight Quoted Text - untuk teks dalam 'tanda kutip tunggal' */
@@ -527,4 +591,25 @@ body {
 .ai-formatted-response ::-moz-selection {
   background: rgba(99, 102, 241, 0.3);
   color: inherit;
+}
+
+/* Streaming cursor animation */
+@keyframes blink {
+
+  0%,
+  50% {
+    opacity: 1;
+  }
+
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.streaming-cursor::after {
+  content: "▋";
+  animation: blink 1s infinite;
+  color: var(--primary);
+  margin-left: 2px;
 }

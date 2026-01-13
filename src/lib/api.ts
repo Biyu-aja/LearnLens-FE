@@ -178,6 +178,90 @@ export const chatAPI = {
             }
         ),
 
+    sendMessageStream: async (
+        materialId: string,
+        message: string,
+        onChunk: (chunk: string) => void,
+        onUserMessage?: (message: Message) => void,
+        onComplete?: (message: Message) => void,
+        onError?: (error: string) => void,
+        signal?: AbortSignal
+    ) => {
+        const token = localStorage.getItem("learnlens_token");
+
+        try {
+            const response = await fetch(`${API_URL}/api/chat/${materialId}/stream`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token && { Authorization: `Bearer ${token}` }),
+                },
+                body: JSON.stringify({ message }),
+                signal, // Pass abort signal to fetch
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to send message");
+            }
+
+            const reader = response.body?.getReader();
+            if (!reader) {
+                throw new Error("No response body");
+            }
+
+            const decoder = new TextDecoder();
+
+            try {
+                while (true) {
+                    // Check if aborted
+                    if (signal?.aborted) {
+                        reader.cancel();
+                        break;
+                    }
+
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const text = decoder.decode(value);
+                    const lines = text.split("\n\n");
+
+                    for (const line of lines) {
+                        if (line.startsWith("data: ")) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+
+                                if (data.type === "user_message" && onUserMessage) {
+                                    onUserMessage(data.message);
+                                } else if (data.type === "chunk") {
+                                    onChunk(data.content);
+                                } else if (data.type === "done" && onComplete) {
+                                    onComplete(data.message);
+                                } else if (data.type === "error" && onError) {
+                                    onError(data.error);
+                                }
+                            } catch {
+                                // Skip invalid JSON
+                            }
+                        }
+                    }
+                }
+            } finally {
+                reader.releaseLock();
+            }
+        } catch (error: any) {
+            // Don't report error if it was an abort
+            if (error.name === 'AbortError') {
+                console.log("Stream aborted by user");
+                return;
+            }
+            console.error("Stream error:", error);
+            if (onError) {
+                onError("Failed to connect to AI service");
+            }
+            throw error;
+        }
+    },
+
     clearHistory: (materialId: string) =>
         fetchAPI<{ success: boolean }>(`/api/chat/${materialId}`, {
             method: "DELETE",
