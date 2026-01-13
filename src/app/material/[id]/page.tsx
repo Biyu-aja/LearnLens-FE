@@ -123,11 +123,22 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
   };
 
   const handleClearChat = async () => {
+    if (!confirm("Are you sure you want to clear all messages?")) return;
+    
     try {
-      await chatAPI.clearHistory(id);
+      await materialsAPI.deleteMessages(id);
       setMessages([]);
     } catch (error) {
       console.error("Failed to clear chat:", error);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      await materialsAPI.deleteMessage(id, messageId);
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+    } catch (error) {
+      console.error("Failed to delete message:", error);
     }
   };
 
@@ -244,6 +255,26 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
     }
   };
 
+  const handleAddTermToGlossary = async (term: string) => {
+    try {
+      const response = await aiAPI.addTermToGlossary(id, term);
+      setGlossary(response.glossary);
+      // Show a brief notification or switch to glossary tab
+      if (response.glossary.length === 1) {
+        // If this is the first term, switch to glossary tab
+        setActiveTab("glossary");
+      }
+      alert(`"${term}" has been added to your glossary!`);
+    } catch (error: any) {
+      console.error("Failed to add term to glossary:", error);
+      if (error.message?.includes("already exists")) {
+        alert("This term already exists in the glossary.");
+      } else {
+        alert("Failed to add term. Please try again.");
+      }
+    }
+  };
+
   if (authLoading || isLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -355,12 +386,14 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
               messages={messages}
               onSendMessage={handleSendMessage}
               onClearHistory={handleClearChat}
+              onDeleteMessage={handleDeleteMessage}
               isLoading={isChatLoading}
               onEditMaterial={() => setShowEdit(true)}
               onOpenSettings={() => setIsSettingsOpen(true)}
               onGenerateSummary={handleGenerateSummary}
               onGenerateQuiz={handleGenerateQuiz}
               onGenerateGlossary={handleGenerateGlossary}
+              onAddTermToGlossary={handleAddTermToGlossary}
               isSummaryLoading={isSummaryLoading}
               isQuizLoading={isQuizLoading}
               isGlossaryLoading={isGlossaryLoading}

@@ -36,9 +36,9 @@
   --assistant-bubble: var(--surface);
 }
 
-/* Dark mode */
+/* Dark mode - System preference */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light) {
     --primary: #818cf8;
     --primary-hover: #6366f1;
     --primary-light: #1e1b4b;
@@ -55,6 +55,25 @@
 
     --assistant-bubble: #27272a;
   }
+}
+
+/* Dark mode - Class based (for manual toggle) */
+:root.dark {
+  --primary: #818cf8;
+  --primary-hover: #6366f1;
+  --primary-light: #1e1b4b;
+
+  --background: #09090b;
+  --background-secondary: #18181b;
+  --foreground: #fafafa;
+  --foreground-muted: #a1a1aa;
+
+  --surface: #18181b;
+  --surface-hover: #27272a;
+  --border: #27272a;
+  --border-light: #3f3f46;
+
+  --assistant-bubble: #27272a;
 }
 
 @theme inline {
@@ -243,7 +262,7 @@ body {
 
 /* AI Response Formatting */
 .ai-formatted-response {
-  line-height: 1.75;
+  line-height: 1.6;
   font-size: 0.9375rem;
 }
 
@@ -256,7 +275,13 @@ body {
 }
 
 .ai-formatted-response p {
-  margin-bottom: 0.875em;
+  margin-bottom: 0.625em;
+  margin-top: 0;
+}
+
+/* Remove margin between adjacent paragraphs */
+.ai-formatted-response p+p {
+  margin-top: 0.625em;
 }
 
 /* Headings */
@@ -265,54 +290,61 @@ body {
 .ai-formatted-response h3,
 .ai-formatted-response h4 {
   font-weight: 700;
-  margin-top: 1.5em;
-  margin-bottom: 0.625em;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
   color: var(--foreground);
   letter-spacing: -0.01em;
 }
 
 .ai-formatted-response h1 {
-  font-size: 1.5rem;
+  font-size: 1.375rem;
   border-bottom: 2px solid var(--border);
-  padding-bottom: 0.375em;
+  padding-bottom: 0.3em;
 }
 
 .ai-formatted-response h2 {
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   border-bottom: 1px solid var(--border);
-  padding-bottom: 0.25em;
+  padding-bottom: 0.2em;
 }
 
 .ai-formatted-response h3 {
-  font-size: 1.125rem;
+  font-size: 1.1rem;
 }
 
 .ai-formatted-response h4 {
   font-size: 1rem;
 }
 
-/* Lists - Both bullet and numbered */
+/* Lists - compact spacing */
 .ai-formatted-response ul,
 .ai-formatted-response ol {
-  margin-bottom: 1em;
+  margin-bottom: 0.625em;
+  margin-top: 0.25em;
   padding-left: 0;
   list-style: none;
 }
 
 .ai-formatted-response li {
-  margin-bottom: 0.5em;
-  padding-left: 1.75em;
+  margin-bottom: 0.25em;
+  padding-left: 1.6em;
   position: relative;
+  line-height: 1.5;
+}
+
+/* Reduce space on last list item */
+.ai-formatted-response li:last-child {
+  margin-bottom: 0;
 }
 
 /* Bullet list styling */
 .ai-formatted-response ul>li::before {
   content: "";
   position: absolute;
-  left: 0.5em;
-  top: 0.625em;
-  width: 6px;
-  height: 6px;
+  left: 0.4em;
+  top: 0.55em;
+  width: 5px;
+  height: 5px;
   background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
   border-radius: 50%;
 }
@@ -330,12 +362,12 @@ body {
   content: counter(list-counter);
   position: absolute;
   left: 0;
-  top: 0;
-  width: 1.5em;
-  height: 1.5em;
+  top: 0.1em;
+  width: 1.3em;
+  height: 1.3em;
   background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
   color: white;
-  font-size: 0.75em;
+  font-size: 0.7em;
   font-weight: 700;
   border-radius: 50%;
   display: flex;
@@ -343,10 +375,10 @@ body {
   justify-content: center;
 }
 
-/* Nested lists */
+/* Nested lists - tighter spacing */
 .ai-formatted-response li>ul,
 .ai-formatted-response li>ol {
-  margin-top: 0.5em;
+  margin-top: 0.25em;
   margin-bottom: 0;
 }
 
@@ -357,19 +389,16 @@ body {
 }
 
 .ai-formatted-response li>ol>li::before {
-  width: 1.25em;
-  height: 1.25em;
-  font-size: 0.65em;
+  width: 1.1em;
+  height: 1.1em;
+  font-size: 0.6em;
   background: var(--foreground-muted);
 }
 
-/* Bold text - more prominent */
+/* Bold text - subtle highlight */
 .ai-formatted-response strong {
-  font-weight: 700;
+  font-weight: 600;
   color: var(--foreground);
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(20, 184, 166, 0.1) 100%);
-  padding: 0.05em 0.25em;
-  border-radius: 3px;
 }
 
 /* Italic text */
@@ -470,4 +499,32 @@ body {
   .highlight-quoted:hover {
     background: linear-gradient(135deg, rgba(139, 92, 246, 0.35) 0%, rgba(99, 102, 241, 0.35) 100%);
   }
+}
+
+/* Selection Menu Animation */
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -100%) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, -100%) scale(1);
+  }
+}
+
+.animate-in {
+  animation: fadeInScale 0.15s ease-out forwards;
+}
+
+/* Text selection styling */
+.ai-formatted-response ::selection {
+  background: rgba(99, 102, 241, 0.3);
+  color: inherit;
+}
+
+.ai-formatted-response ::-moz-selection {
+  background: rgba(99, 102, 241, 0.3);
+  color: inherit;
 }

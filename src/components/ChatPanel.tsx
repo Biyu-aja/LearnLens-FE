@@ -5,17 +5,21 @@ import { Send, Loader2, Trash2, Settings, Edit, ChevronDown, FileText, HelpCircl
 import { Message } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { FormattedAIContent } from "@/lib/format-ai-response";
+import { SelectionMenu } from "@/components/SelectionMenu";
+import { MessageContextMenu } from "@/components/MessageContextMenu";
 
 interface ChatPanelProps {
   messages: Message[];
   onSendMessage: (message: string) => Promise<void>;
   onClearHistory: () => Promise<void>;
+  onDeleteMessage?: (messageId: string) => Promise<void>;
   isLoading: boolean;
   onEditMaterial?: () => void;
   onOpenSettings: () => void;
   onGenerateSummary: () => Promise<void>;
   onGenerateQuiz: () => Promise<void>;
   onGenerateGlossary?: () => Promise<void>;
+  onAddTermToGlossary?: (term: string) => void;
   isSummaryLoading: boolean;
   isQuizLoading: boolean;
   isGlossaryLoading?: boolean;
@@ -28,12 +32,14 @@ export function ChatPanel({
   messages, 
   onSendMessage, 
   onClearHistory,
+  onDeleteMessage,
   isLoading,
   onEditMaterial,
   onOpenSettings,
   onGenerateSummary,
   onGenerateQuiz,
   onGenerateGlossary,
+  onAddTermToGlossary,
   isSummaryLoading,
   isQuizLoading,
   isGlossaryLoading,
@@ -45,6 +51,38 @@ export function ChatPanel({
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    messageId: string;
+    messageContent: string;
+    messageRole: "user" | "assistant";
+    position: { x: number; y: number };
+  } | null>(null);
+
+  // Long press handling for mobile
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const longPressTriggered = useRef(false);
+
+  // Handle text selection - Ask AI to explain
+  const handleAskAI = (text: string) => {
+    const prompt = `Please explain the following term or concept from the material: "${text}"`;
+    setInput(prompt);
+    inputRef.current?.focus();
+  };
+
+  // Handle text selection - Add to glossary
+  const handleAddToGlossary = (text: string) => {
+    if (onAddTermToGlossary) {
+      onAddTermToGlossary(text);
+    } else {
+      // Fallback: ask AI to define the term
+      const prompt = `Please provide a brief definition for the term: "${text}"`;
+      setInput(prompt);
+      inputRef.current?.focus();
+    }
+  };
   
   // Auto-scroll new messages
   useEffect(() => {
@@ -72,6 +110,68 @@ export function ChatPanel({
       e.preventDefault();
       handleSubmit(e);
     }
+  };
+
+  // Handle message context menu
+  const handleMessageClick = (
+    e: React.MouseEvent,
+    message: Message
+  ) => {
+    // Prevent context menu if user is selecting text
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) return;
+
+    // Open context menu
+    if (message.id) {
+      e.preventDefault();
+      setContextMenu({
+        messageId: message.id,
+        messageContent: message.content,
+        messageRole: message.role as "user" | "assistant",
+        position: { x: e.clientX, y: e.clientY },
+      });
+    }
+  };
+
+  // Mobile long press handlers
+  const handleTouchStart = (message: Message) => {
+    longPressTriggered.current = false;
+    longPressTimer.current = setTimeout(() => {
+      longPressTriggered.current = true;
+      if (message.id) {
+        // Vibrate if supported
+        if (navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+        setContextMenu({
+          messageId: message.id,
+          messageContent: message.content,
+          messageRole: message.role as "user" | "assistant",
+          position: { x: window.innerWidth / 2 - 80, y: window.innerHeight / 2 - 50 },
+        });
+      }
+    }, 500); // 500ms long press
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleTouchMove = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleDeleteFromMenu = async (messageId: string) => {
+    if (onDeleteMessage) {
+      await onDeleteMessage(messageId);
+    }
+    setContextMenu(null);
   };
 
   const currentModelName = user?.preferredModel 
@@ -125,7 +225,17 @@ export function ChatPanel({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div 
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto px-4 py-4 space-y-4 relative"
+      >
+        {/* Selection Menu */}
+        <SelectionMenu
+          containerRef={messagesContainerRef}
+          onAddToGlossary={handleAddToGlossary}
+          onAskAI={handleAskAI}
+        />
+        
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-100 to-teal-100 dark:from-indigo-900/30 dark:to-teal-900/30 flex items-center justify-center mb-4">
@@ -143,11 +253,16 @@ export function ChatPanel({
               className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} fade-in`}
             >
               <div
-                className={`max-w-[85%] sm:max-w-[80%] px-4 py-3 rounded-2xl ${
+                className={`max-w-[85%] sm:max-w-[80%] px-4 py-3 rounded-2xl cursor-pointer select-text ${
                   message.role === "user"
                     ? "bg-[var(--primary)] text-white rounded-br-md"
                     : "bg-[var(--assistant-bubble)] border border-[var(--border)] rounded-bl-md"
                 }`}
+                onClick={(e) => handleMessageClick(e, message)}
+                onContextMenu={(e) => handleMessageClick(e, message)}
+                onTouchStart={() => handleTouchStart(message)}
+                onTouchEnd={handleTouchEnd}
+                onTouchMove={handleTouchMove}
               >
                 <div className="markdown-content text-sm whitespace-pre-wrap">
                   {message.role === "assistant" ? (
@@ -174,6 +289,18 @@ export function ChatPanel({
         
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <MessageContextMenu
+          messageId={contextMenu.messageId}
+          messageContent={contextMenu.messageContent}
+          messageRole={contextMenu.messageRole}
+          onDelete={onDeleteMessage ? handleDeleteFromMenu : undefined}
+          onClose={() => setContextMenu(null)}
+          position={contextMenu.position}
+        />
+      )}
 
       {/* Quick Actions */}
       <div className="px-4 py-2 flex gap-2 flex-wrap">

@@ -152,6 +152,16 @@ export const materialsAPI = {
         fetchAPI<{ success: boolean }>(`/api/materials/${id}/quizzes`, {
             method: "DELETE",
         }),
+
+    deleteMessages: (id: string) =>
+        fetchAPI<{ success: boolean }>(`/api/materials/${id}/messages`, {
+            method: "DELETE",
+        }),
+
+    deleteMessage: (materialId: string, messageId: string) =>
+        fetchAPI<{ success: boolean }>(`/api/materials/${materialId}/messages/${messageId}`, {
+            method: "DELETE",
+        }),
 };
 
 // Chat API
@@ -207,6 +217,12 @@ export const aiAPI = {
     deleteGlossary: (materialId: string) =>
         fetchAPI<{ success: boolean }>(`/api/ai/${materialId}/glossary`, {
             method: "DELETE",
+        }),
+
+    addTermToGlossary: (materialId: string, term: string, model?: string) =>
+        fetchAPI<{ success: boolean; term: GlossaryTerm; glossary: GlossaryTerm[] }>(`/api/ai/${materialId}/glossary/term`, {
+            method: "POST",
+            body: JSON.stringify({ term, model }),
         }),
 };
 

@@ -156,6 +156,26 @@ export function Sidebar({ materials, onNewMaterial }: SidebarProps) {
           </Link>
         </div>
 
+        {/* Settings Link */}
+        <div className="px-4 py-2">
+          <Link
+            href="/settings"
+            onClick={() => setIsOpen(false)}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
+              pathname === "/settings"
+                ? "bg-[var(--sidebar-active)] text-white"
+                : "hover:bg-[var(--sidebar-hover)] text-[var(--sidebar-text-muted)]"
+            }`}
+          >
+            <Settings size={16} className="shrink-0" />
+            <span className="flex-1 text-sm font-medium">Settings</span>
+            <ChevronRight 
+              size={14} 
+              className={`shrink-0 ${pathname === "/settings" ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} 
+            />
+          </Link>
+        </div>
+
         {/* User section */}
         <div className="p-4 border-t border-[var(--sidebar-hover)]">
           <div className="flex items-center gap-3">
