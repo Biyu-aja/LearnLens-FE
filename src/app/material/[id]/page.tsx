@@ -9,7 +9,8 @@ import {
   HelpCircle, 
   ArrowLeft, 
   Trash2,
-  Book
+  Book,
+  BarChart3
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Sidebar } from "@/components/Sidebar";
@@ -21,9 +22,11 @@ import { MaterialUpload } from "@/components/MaterialUpload";
 import { EditMaterialModal } from "@/components/EditMaterialModal";
 import { SettingsModal } from "@/components/SettingsModal";
 import { QuizConfigModal, QuizConfig } from "@/components/QuizConfigModal";
-import { materialsAPI, chatAPI, aiAPI, Material, MaterialSummary, Message, Quiz, GlossaryTerm } from "@/lib/api";
+import { SummaryConfigModal, SummaryConfig } from "@/components/SummaryConfigModal";
+import { materialsAPI, chatAPI, aiAPI, analyticsAPI, Material, MaterialSummary, Message, Quiz, GlossaryTerm } from "@/lib/api";
+import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 
-type Tab = "chat" | "summary" | "quiz" | "glossary";
+type Tab = "chat" | "summary" | "quiz" | "glossary" | "analytics";
 
 export default function MaterialPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -45,9 +48,13 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
   const [showEdit, setShowEdit] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showQuizConfig, setShowQuizConfig] = useState(false);
+  const [showSummaryConfig, setShowSummaryConfig] = useState(false);
 
   // AbortController for stopping stream
   const abortControllerRef = useRef<AbortController | null>(null);
+  
+  // Study session tracking
+  const sessionIdRef = useRef<string | null>(null);
 
   // Redirect to home if not logged in
   useEffect(() => {
@@ -64,6 +71,30 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
       fetchGlossary();
     }
   }, [user, id]);
+
+  // Track study session
+  useEffect(() => {
+    if (user && id && material) {
+      // Start session when material page is opened
+      const startSession = async () => {
+        try {
+          const response = await analyticsAPI.startSession(id);
+          sessionIdRef.current = response.session.id;
+        } catch (error) {
+          console.error("Failed to start session:", error);
+        }
+      };
+      startSession();
+
+      // End session on unmount or navigation
+      return () => {
+        if (sessionIdRef.current) {
+          analyticsAPI.endSession(sessionIdRef.current).catch(console.error);
+          sessionIdRef.current = null;
+        }
+      };
+    }
+  }, [user, id, material]);
 
   const fetchMaterial = async () => {
     try {
@@ -309,9 +340,17 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
       setActiveTab("summary");
       return;
     }
+    // Show config modal for new summary
+    setShowSummaryConfig(true);
+  };
+
+  const handleSummaryConfigGenerate = async (config: SummaryConfig) => {
     setIsSummaryLoading(true);
     try {
-      const response = await materialsAPI.generateSummary(id);
+      const response = await materialsAPI.generateSummary(id, {
+        model: config.model,
+        customText: config.customText,
+      });
       setMaterial((prev) => prev ? { ...prev, summary: response.summary } : null);
       setActiveTab("summary");
     } catch (error) {
@@ -469,6 +508,9 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
     tabs.push({ id: "glossary", label: "Glossary", icon: Book });
   }
 
+  // Always show Analytics tab
+  tabs.push({ id: "analytics", label: "Analytics", icon: BarChart3 });
+
   return (
     <div className="min-h-screen bg-[var(--background)]">
       <Sidebar 
@@ -569,6 +611,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
             <SummaryPanel
               summary={material.summary || null}
               onGenerateSummary={handleGenerateSummary}
+              onShowConfig={() => setShowSummaryConfig(true)}
               onDeleteSummary={handleDeleteSummary}
               isLoading={isSummaryLoading}
             />
@@ -576,6 +619,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
           {activeTab === "quiz" && (
             <QuizPanel
               quizzes={quizzes}
+              materialId={id}
               onGenerateQuiz={() => handleGenerateQuiz()}
               onDeleteQuizzes={handleDeleteQuizzes}
               onShowConfig={() => setShowQuizConfig(true)}
@@ -589,6 +633,9 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
               onDeleteGlossary={handleDeleteGlossary}
               isLoading={isGlossaryLoading}
             />
+          )}
+          {activeTab === "analytics" && (
+            <AnalyticsPanel materialId={id} />
           )}
         </div>
       </main>
@@ -625,6 +672,16 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
           onClose={() => setShowQuizConfig(false)}
           onGenerate={handleQuizConfigGenerate}
           currentMaterialId={material.id}
+          currentMaterialTitle={material.title}
+        />
+      )}
+
+      {/* Summary Config Modal */}
+      {material && (
+        <SummaryConfigModal
+          isOpen={showSummaryConfig}
+          onClose={() => setShowSummaryConfig(false)}
+          onGenerate={handleSummaryConfigGenerate}
           currentMaterialTitle={material.title}
         />
       )}

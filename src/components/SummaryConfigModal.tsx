@@ -1,90 +1,82 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Loader2, HelpCircle, Sparkles, Check, Wand2, Languages, BookOpen, Target } from "lucide-react";
+import { X, Loader2, FileText, Sparkles, Check, Languages, ListOrdered, BookOpen, Minimize2 } from "lucide-react";
 import { AIModel, authAPI } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
-interface QuizConfigModalProps {
+interface SummaryConfigModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onGenerate: (config: QuizConfig) => Promise<void>;
-  currentMaterialId: string;
+  onGenerate: (config: SummaryConfig) => Promise<void>;
   currentMaterialTitle: string;
 }
 
-export interface QuizConfig {
-  questionCount: number;
-  difficulty: "easy" | "medium" | "hard";
+export interface SummaryConfig {
   model: string;
-  materialIds: string[];
   customText: string;
 }
 
-// Prompt templates
+// Prompt templates for summary
 const PROMPT_TEMPLATES = [
   {
     id: "indonesian",
     label: "Bahasa Indonesia",
     icon: Languages,
-    prompt: "Generate the quiz questions and answer options in Indonesian language (Bahasa Indonesia).",
+    prompt: "Generate the summary in Indonesian language (Bahasa Indonesia).",
     color: "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30",
   },
   {
     id: "english",
     label: "English",
     icon: Languages,
-    prompt: "Generate the quiz questions and answer options in English.",
+    prompt: "Generate the summary in English.",
     color: "text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30",
   },
   {
-    id: "focus",
-    label: "Fokus Kepada Materi",
-    icon: BookOpen,
-    prompt: "Focus on content {materialTitle} from the material.",
+    id: "bullet",
+    label: "Bullet Points",
+    icon: ListOrdered,
+    prompt: "Format the summary using bullet points for easy reading.",
     color: "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30",
   },
   {
-    id: "keyterms",
-    label: "Istilah Kunci",
-    icon: Target,
-    prompt: "Focus questions on key terminology, definitions, and vocabulary from the material.",
+    id: "detailed",
+    label: "Detailed",
+    icon: BookOpen,
+    prompt: "Create a detailed and comprehensive summary covering all important points.",
     color: "text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30",
   },
   {
-    id: "concepts",
-    label: "Konsep Utama",
-    icon: Wand2,
-    prompt: "Focus questions on main concepts and their applications, not just facts.",
+    id: "concise",
+    label: "Concise",
+    icon: Minimize2,
+    prompt: "Create a brief and concise summary focusing only on the key points.",
     color: "text-teal-600 dark:text-teal-400 bg-teal-100 dark:bg-teal-900/30",
   },
 ];
 
-export function QuizConfigModal({
+export function SummaryConfigModal({
   isOpen,
   onClose,
   onGenerate,
-  currentMaterialId,
   currentMaterialTitle,
-}: QuizConfigModalProps) {
+}: SummaryConfigModalProps) {
   const { user } = useAuth();
   const [models, setModels] = useState<AIModel[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Config state
-  const [questionCount, setQuestionCount] = useState(10);
-  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
   const [selectedModel, setSelectedModel] = useState(user?.preferredModel || "gemini-2.5-flash-lite");
   const [customPrompt, setCustomPrompt] = useState("");
 
   useEffect(() => {
     if (isOpen) {
       loadModels();
-      // Reset custom prompt
       setCustomPrompt("");
     }
-  }, [isOpen, currentMaterialId]);
+  }, [isOpen]);
 
   const loadModels = async () => {
     setIsLoading(true);
@@ -115,28 +107,18 @@ export function QuizConfigModal({
     setIsGenerating(true);
     try {
       await onGenerate({
-        questionCount,
-        difficulty,
         model: selectedModel,
-        materialIds: [currentMaterialId], // Always use current material
         customText: customPrompt.trim(),
       });
       onClose();
     } catch (error) {
-      console.error("Failed to generate quiz:", error);
+      console.error("Failed to generate summary:", error);
     } finally {
       setIsGenerating(false);
     }
   };
 
   if (!isOpen) return null;
-
-  const questionOptions = [5, 10, 15, 20, 25, 30];
-  const difficultyOptions = [
-    { value: "easy" as const, label: "Easy", desc: "Basic recall questions" },
-    { value: "medium" as const, label: "Medium", desc: "Application & understanding" },
-    { value: "hard" as const, label: "Hard", desc: "Analysis & critical thinking" },
-  ];
 
   // Group models by tier
   const groupedModels = models.reduce((acc, model) => {
@@ -160,15 +142,15 @@ export function QuizConfigModal({
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative bg-[var(--surface)] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="relative bg-[var(--surface)] rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[var(--border)]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-              <HelpCircle size={20} className="text-purple-600 dark:text-purple-400" />
+            <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+              <FileText size={20} className="text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold">Generate Quiz</h2>
+              <h2 className="text-lg font-semibold">Generate Summary</h2>
               <p className="text-xs text-[var(--foreground-muted)]">
                 From: <span className="font-medium">{currentMaterialTitle}</span>
               </p>
@@ -190,49 +172,6 @@ export function QuizConfigModal({
             </div>
           ) : (
             <>
-              {/* Difficulty */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Difficulty Level</label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {difficultyOptions.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => setDifficulty(opt.value)}
-                      className={`p-3 rounded-xl text-left transition-all ${
-                        difficulty === opt.value
-                          ? "bg-[var(--primary)] text-white"
-                          : "bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)]"
-                      }`}
-                    >
-                      <div className="font-medium text-sm">{opt.label}</div>
-                      <div className={`text-xs mt-0.5 ${difficulty === opt.value ? "text-white/80" : "text-[var(--foreground-muted)]"}`}>
-                        {opt.desc}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Question Count */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Number of Questions</label>
-                <div className="flex flex-row gap-2">
-                  {questionOptions.map((count) => (
-                    <button
-                      key={count}
-                      onClick={() => setQuestionCount(count)}
-                      className={`px-4 py-2 w-full rounded-lg text-sm font-medium transition-all ${
-                        questionCount === count
-                          ? "bg-[var(--primary)] text-white"
-                          : "bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)]"
-                      }`}
-                    >
-                      {count}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* AI Model Selection */}
               <div>
                 <label className="block text-sm font-medium mb-2">AI Model</label>
@@ -302,13 +241,13 @@ export function QuizConfigModal({
                 <textarea
                   value={customPrompt}
                   onChange={(e) => setCustomPrompt(e.target.value)}
-                  placeholder="Tulis instruksi untuk quiz, contoh:
+                  placeholder="Tulis instruksi untuk summary, contoh:
 • Gunakan bahasa Indonesia
-• Fokus pada bab 1 saja
-• Buat soal berbasis skenario
-• Hindari soal definisi"
+• Fokus pada konsep utama
+• Buat dalam format bullet points
+• Sertakan contoh-contoh penting"
                   className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm"
-                  rows={5}
+                  rows={4}
                 />
                 {customPrompt.trim() && (
                   <button
@@ -344,7 +283,7 @@ export function QuizConfigModal({
             ) : (
               <>
                 <Sparkles size={16} />
-                Generate Quiz
+                Generate Summary
               </>
             )}
           </button>

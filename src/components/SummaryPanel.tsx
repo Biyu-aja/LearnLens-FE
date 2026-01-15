@@ -1,16 +1,17 @@
 "use client";
 
-import { Loader2, FileText, Sparkles, Trash2 } from "lucide-react";
+import { Loader2, FileText, Sparkles, Trash2, Settings2 } from "lucide-react";
 import { FormattedAIContent } from "@/lib/format-ai-response";
 
 interface SummaryPanelProps {
   summary: string | null;
-  onGenerateSummary: () => Promise<void>;
+  onGenerateSummary: () => void;
+  onShowConfig: () => void;
   onDeleteSummary: () => Promise<void>;
   isLoading: boolean;
 }
 
-export function SummaryPanel({ summary, onGenerateSummary, onDeleteSummary, isLoading }: SummaryPanelProps) {
+export function SummaryPanel({ summary, onGenerateSummary, onShowConfig, onDeleteSummary, isLoading }: SummaryPanelProps) {
   return (
     <div className="p-4 sm:p-6 overflow-y-auto h-full">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
@@ -23,7 +24,7 @@ export function SummaryPanel({ summary, onGenerateSummary, onDeleteSummary, isLo
         {summary && (
           <div className="flex items-center gap-2">
             <button
-              onClick={onGenerateSummary}
+              onClick={onShowConfig}
               disabled={isLoading}
               className="flex items-center justify-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 border border-[var(--border)] rounded-lg hover:bg-[var(--surface-hover)] disabled:opacity-50 transition-colors text-xs sm:text-sm"
             >
@@ -66,7 +67,7 @@ export function SummaryPanel({ summary, onGenerateSummary, onDeleteSummary, isLo
             Generate an AI summary of your learning material
           </p>
           <button
-            onClick={onGenerateSummary}
+            onClick={onShowConfig}
             disabled={isLoading}
             className="inline-flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 bg-[var(--primary)] text-white rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-colors font-medium text-sm"
           >

@@ -118,9 +118,10 @@ export const materialsAPI = {
         });
     },
 
-    generateSummary: (id: string) =>
+    generateSummary: (id: string, config?: { model?: string; customText?: string }) =>
         fetchAPI<{ success: boolean; summary: string }>(`/api/materials/${id}/summary`, {
             method: "POST",
+            body: JSON.stringify(config || {}),
         }),
 
     update: (id: string, data: { title?: string; content?: string }) =>
@@ -318,6 +319,10 @@ export interface User {
     image?: string;
     preferredModel?: string;
     maxTokens?: number;
+    maxContext?: number;
+    customApiUrl?: string;
+    customModel?: string;
+    hasCustomApiKey?: boolean;
 }
 
 export interface AIModel {
@@ -365,6 +370,7 @@ export interface Quiz {
     question: string;
     options: string[];
     answer: number;
+    hint?: string;
     createdAt: string;
 }
 
@@ -373,3 +379,60 @@ export interface GlossaryTerm {
     definition: string;
     category?: string;
 }
+
+// Analytics Types
+export interface StudySession {
+    id: string;
+    startTime: string;
+    endTime?: string;
+    duration?: number;
+    materialId: string;
+    createdAt: string;
+}
+
+export interface QuizAttempt {
+    id: string;
+    score: number;
+    totalQuestions: number;
+    percentage: number;
+    materialId: string;
+    createdAt: string;
+}
+
+export interface MaterialAnalytics {
+    studyTime: {
+        total: number;
+        sessions: number;
+        recentSessions: StudySession[];
+    };
+    quizPerformance: {
+        totalAttempts: number;
+        averageScore: number;
+        bestScore: number;
+        recentAttempts: QuizAttempt[];
+    };
+}
+
+// Analytics API
+export const analyticsAPI = {
+    startSession: (materialId: string) =>
+        fetchAPI<{ success: boolean; session: StudySession }>("/api/analytics/session/start", {
+            method: "POST",
+            body: JSON.stringify({ materialId }),
+        }),
+
+    endSession: (sessionId: string) =>
+        fetchAPI<{ success: boolean; session: StudySession }>("/api/analytics/session/end", {
+            method: "POST",
+            body: JSON.stringify({ sessionId }),
+        }),
+
+    saveQuizAttempt: (materialId: string, score: number, totalQuestions: number) =>
+        fetchAPI<{ success: boolean; attempt: QuizAttempt }>("/api/analytics/quiz-attempt", {
+            method: "POST",
+            body: JSON.stringify({ materialId, score, totalQuestions }),
+        }),
+
+    getMaterialAnalytics: (materialId: string) =>
+        fetchAPI<{ success: boolean; analytics: MaterialAnalytics }>(`/api/analytics/material/${materialId}`),
+};

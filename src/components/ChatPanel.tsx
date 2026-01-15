@@ -448,7 +448,7 @@ export function ChatPanel({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={isLoading ? "AI is generating..." : `Ask ${currentModelName}...`}
+            placeholder={isLoading ? "AI is generating..." : `Ask something about your material...`}
             rows={1}
             className="flex-1 px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm max-h-[150px]"
           />

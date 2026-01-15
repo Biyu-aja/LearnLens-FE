@@ -321,58 +321,25 @@ body {
 .ai-formatted-response ol {
   margin-bottom: 0.625em;
   margin-top: 0.25em;
-  padding-left: 0;
-  list-style: none;
+  padding-left: 1.5em;
+}
+
+.ai-formatted-response ul {
+  list-style-type: disc;
+}
+
+.ai-formatted-response ol {
+  list-style-type: decimal;
 }
 
 .ai-formatted-response li {
   margin-bottom: 0.25em;
-  padding-left: 1.6em;
-  position: relative;
   line-height: 1.5;
 }
 
 /* Reduce space on last list item */
 .ai-formatted-response li:last-child {
   margin-bottom: 0;
-}
-
-/* Bullet list styling */
-.ai-formatted-response ul>li::before {
-  content: "";
-  position: absolute;
-  left: 0.4em;
-  top: 0.55em;
-  width: 5px;
-  height: 5px;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-  border-radius: 50%;
-}
-
-/* Numbered list styling */
-.ai-formatted-response ol {
-  counter-reset: list-counter;
-}
-
-.ai-formatted-response ol>li {
-  counter-increment: list-counter;
-}
-
-.ai-formatted-response ol>li::before {
-  content: counter(list-counter);
-  position: absolute;
-  left: 0;
-  top: 0.1em;
-  width: 1.3em;
-  height: 1.3em;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-  color: white;
-  font-size: 0.7em;
-  font-weight: 700;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 /* Nested lists - tighter spacing */
@@ -382,17 +349,12 @@ body {
   margin-bottom: 0;
 }
 
-.ai-formatted-response li>ul>li::before {
-  width: 4px;
-  height: 4px;
-  background: var(--foreground-muted);
+.ai-formatted-response li>ul {
+  list-style-type: circle;
 }
 
-.ai-formatted-response li>ol>li::before {
-  width: 1.1em;
-  height: 1.1em;
-  font-size: 0.6em;
-  background: var(--foreground-muted);
+.ai-formatted-response li>ol {
+  list-style-type: lower-alpha;
 }
 
 /* Bold text - subtle highlight */
