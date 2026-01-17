@@ -92,6 +92,13 @@ export const authAPI = {
     getModels: async () => {
         return fetchAPI<{ success: boolean; models: AIModel[] }>("/api/auth/models");
     },
+
+    changePassword: async (currentPassword: string, newPassword: string) => {
+        return fetchAPI<{ success: boolean; message: string }>("/api/auth/change-password", {
+            method: "PUT",
+            body: JSON.stringify({ currentPassword, newPassword }),
+        });
+    },
 };
 
 // Materials API

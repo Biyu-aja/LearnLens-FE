@@ -4,12 +4,12 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 
 type Theme = "light" | "dark" | "system";
 type Language = "id" | "en";
+type ChatTheme = "modern" | "classic" | "minimal";
 
 interface UserSettings {
   theme: Theme;
   language: Language;
-  emailNotifications: boolean;
-  soundEnabled: boolean;
+  chatTheme: ChatTheme;
 }
 
 interface SettingsContextType {
@@ -21,8 +21,7 @@ interface SettingsContextType {
 const defaultSettings: UserSettings = {
   theme: "system",
   language: "id",
-  emailNotifications: true,
-  soundEnabled: true,
+  chatTheme: "modern",
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -60,8 +59,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       const saved = localStorage.getItem("learnlens-settings");
       if (saved) {
         const parsed = JSON.parse(saved) as UserSettings;
-        setSettings(parsed);
-        applyTheme(parsed.theme);
+        // Clean up old notification settings if they exist
+        const cleanedSettings: UserSettings = {
+          theme: parsed.theme || defaultSettings.theme,
+          language: parsed.language || defaultSettings.language,
+          chatTheme: parsed.chatTheme || defaultSettings.chatTheme,
+        };
+        setSettings(cleanedSettings);
+        applyTheme(cleanedSettings.theme);
       } else {
         // Apply default theme
         applyTheme(defaultSettings.theme);
@@ -141,13 +146,19 @@ const translations = {
     account: "Akun",
     appearance: "Tampilan",
     language: "Bahasa",
-    notifications: "Notifikasi",
+    security: "Keamanan",
     logout: "Keluar",
     
     // Theme
     light: "Terang",
     dark: "Gelap",
     system: "Sistem",
+    
+    // Password
+    changePassword: "Ganti Password",
+    currentPassword: "Password Saat Ini",
+    newPassword: "Password Baru",
+    confirmPassword: "Konfirmasi Password",
     
     // Chat
     askQuestion: "Tanyakan sesuatu tentang materi Anda...",
@@ -180,13 +191,19 @@ const translations = {
     account: "Account",
     appearance: "Appearance",
     language: "Language",
-    notifications: "Notifications",
+    security: "Security",
     logout: "Logout",
     
     // Theme
     light: "Light",
     dark: "Dark",
     system: "System",
+    
+    // Password
+    changePassword: "Change Password",
+    currentPassword: "Current Password",
+    newPassword: "New Password",
+    confirmPassword: "Confirm Password",
     
     // Chat
     askQuestion: "Ask something about your material...",

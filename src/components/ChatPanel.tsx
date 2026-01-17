@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Trash2, Settings, Edit, ChevronDown, FileText, HelpCircle, Book, Sparkles, Square } from "lucide-react";
+import { Send, Loader2, Trash2, Settings, Edit, ChevronDown, FileText, HelpCircle, Book, Sparkles, Square, User, Bot, UserIcon } from "lucide-react";
 import { Message } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useSettings } from "@/lib/settings-context";
 import { FormattedAIContent } from "@/lib/format-ai-response";
 import { SelectionMenu } from "@/components/SelectionMenu";
 import { MessageContextMenu } from "@/components/MessageContextMenu";
@@ -52,6 +53,7 @@ export function ChatPanel({
   hasGlossary
 }: ChatPanelProps) {
   const { user } = useAuth();
+  const { settings } = useSettings();
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -311,16 +313,116 @@ export function ChatPanel({
               );
             }
             
+            // Render based on chat theme
+            const chatTheme = settings.chatTheme || "modern";
+
+            if (chatTheme === "classic") {
+              // Classic theme - flat style with left border
+              return (
+                <div
+                  key={message.id || index}
+                  className="fade-in mb-3"
+                  onClick={(e) => handleMessageClick(e, message, index)}
+                  onContextMenu={(e) => handleMessageClick(e, message, index)}
+                  onTouchStart={() => handleTouchStart(message, index)}
+                  onTouchEnd={handleTouchEnd}
+                  onTouchMove={handleTouchMove}
+                >
+                  <div
+                    className={`border-l-3 pl-3 py-2 cursor-pointer select-text ${
+                      message.role === "user"
+                        ? "border-l-[var(--primary)]"
+                        : "border-l-emerald-500"
+                    }`}
+                    style={{ borderLeftWidth: '3px' }}
+                  >
+                    <div className={`text-md font-bold mb-1 ${
+                      message.role === "user"
+                        ? "text-[var(--primary)]"
+                        : "text-emerald-500"
+                    }`}>
+                      {message.role === "user" ? <span className="flex gap-2 items-center"><UserIcon /> You</span> : <span className="flex gap-2 items-center"><Bot /> LearnLens AI</span>}
+                    </div>
+                    <div className={`markdown-content text-sm ${
+                      message.id?.startsWith("streaming-") && isLoading ? "streaming-cursor" : ""
+                    }`}>
+                      {message.role === "assistant" ? (
+                        message.id?.startsWith("streaming-") && message.content ? (
+                          <span>{message.content}</span>
+                        ) : (
+                          <FormattedAIContent content={message.content} />
+                        )
+                      ) : (
+                        <span className="whitespace-pre-wrap">{message.content}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            if (chatTheme === "minimal") {
+              // Minimal theme - clean inline with labels
+              return (
+                <div
+                  key={message.id || index}
+                  className="fade-in mb-2"
+                  onClick={(e) => handleMessageClick(e, message, index)}
+                  onContextMenu={(e) => handleMessageClick(e, message, index)}
+                  onTouchStart={() => handleTouchStart(message, index)}
+                  onTouchEnd={handleTouchEnd}
+                  onTouchMove={handleTouchMove}
+                >
+                  <div className="flex items-start gap-2 cursor-pointer select-text py-1">
+                    <div className={`flex items-center gap-1 shrink-0 mt-0.5 ${
+                      message.role === "user"
+                        ? "text-[var(--primary)]"
+                        : "text-emerald-500"
+                    }`}>
+                      {message.role === "user" ? (
+                        <User size={14} />
+                      ) : (
+                        <Bot size={14} />
+                      )}
+                    </div>
+                    <div className={`flex-1 text-sm ${
+                      message.id?.startsWith("streaming-") && isLoading ? "streaming-cursor" : ""
+                    }`}>
+                      {message.role === "assistant" ? (
+                        <div className="markdown-content">
+                          {message.id?.startsWith("streaming-") && message.content ? (
+                            <span>{message.content}</span>
+                          ) : (
+                            <FormattedAIContent content={message.content} />
+                          )}
+                        </div>
+                      ) : (
+                        <span className="whitespace-pre-wrap">{message.content}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            // Modern theme (default) - premium bubble style with avatars
             return (
               <div
                 key={message.id || index}
-                className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} fade-in`}
+                className={`flex items-end gap-2 ${message.role === "user" ? "justify-end" : "justify-start"} fade-in mb-1`}
               >
+                {/* AI Avatar - shown on left for assistant */}
+                {message.role === "assistant" && (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shrink-0 shadow-md">
+                    <Sparkles size={14} className="text-white" />
+                  </div>
+                )}
+                
                 <div
-                  className={`max-w-[85%] sm:max-w-[80%] px-4 py-3 rounded-2xl cursor-pointer select-text ${
+                  className={`max-w-[75%] sm:max-w-[70%] px-4 py-3 cursor-pointer select-text transition-all ${
                     message.role === "user"
-                      ? "bg-[var(--primary)] text-white rounded-br-md"
-                      : "bg-[var(--assistant-bubble)] border border-[var(--border)] rounded-bl-md"
+                      ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-2xl rounded-br-md shadow-lg shadow-indigo-500/20"
+                      : "bg-[var(--surface)] border border-[var(--border)] rounded-2xl rounded-bl-md shadow-sm hover:shadow-md"
                   }`}
                   onClick={(e) => handleMessageClick(e, message, index)}
                   onContextMenu={(e) => handleMessageClick(e, message, index)}
@@ -328,21 +430,29 @@ export function ChatPanel({
                   onTouchEnd={handleTouchEnd}
                   onTouchMove={handleTouchMove}
                 >
-                  <div className={`markdown-content text-sm whitespace-pre-wrap ${
+                  <div className={`markdown-content text-sm ${
+                    message.role === "user" ? "" : "text-[var(--foreground)]"
+                  } ${
                     message.id?.startsWith("streaming-") && isLoading ? "streaming-cursor" : ""
                   }`}>
                     {message.role === "assistant" ? (
                       message.id?.startsWith("streaming-") && message.content ? (
-                        // Show raw content for streaming - FormattedAIContent can cause issues with partial markdown
-                        <span>{message.content}</span>
+                        <span className="whitespace-pre-wrap">{message.content}</span>
                       ) : (
                         <FormattedAIContent content={message.content} />
                       )
                     ) : (
-                      message.content
+                      <span className="whitespace-pre-wrap">{message.content}</span>
                     )}
                   </div>
                 </div>
+
+                {/* User Avatar - shown on right for user */}
+                {message.role === "user" && (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 shadow-md">
+                    <User size={14} className="text-white" />
+                  </div>
+                )}
               </div>
             );
           })

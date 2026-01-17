@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import { 
   Settings, 
   User, 
-  Globe, 
-  Bell, 
   Palette, 
   LogOut, 
   Loader2, 
@@ -14,7 +12,11 @@ import {
   Mail,
   Moon,
   Sun,
-  Monitor
+  Monitor,
+  Lock,
+  Eye,
+  EyeOff,
+  KeyRound
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
@@ -23,7 +25,6 @@ import { MaterialUpload } from "@/components/MaterialUpload";
 import { materialsAPI, authAPI, MaterialSummary } from "@/lib/api";
 
 type Theme = "light" | "dark" | "system";
-type Language = "id" | "en";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -40,6 +41,17 @@ export default function SettingsPage() {
 
   // Separate state for display name (editable)
   const [displayName, setDisplayName] = useState("");
+
+  // Password change states
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   useEffect(() => {
     if (!loading && !user) {
@@ -74,6 +86,12 @@ export default function SettingsPage() {
     router.push(`/material/${response.material.id}`);
   };
 
+  // Handle theme change - apply immediately
+  const handleThemeChange = (theme: Theme) => {
+    setLocalSettings({ ...localSettings, theme });
+    updateSettings({ theme });
+  };
+
   const handleSaveSettings = async () => {
     setIsSaving(true);
     setSaveMessage("");
@@ -101,6 +119,41 @@ export default function SettingsPage() {
     }
   };
 
+  const handleChangePassword = async () => {
+    setPasswordError("");
+    setPasswordMessage("");
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError("All fields are required");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError("New password must be at least 6 characters");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New passwords do not match");
+      return;
+    }
+
+    setIsChangingPassword(true);
+
+    try {
+      await authAPI.changePassword(currentPassword, newPassword);
+      setPasswordMessage("Password changed successfully!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => setPasswordMessage(""), 3000);
+    } catch (error) {
+      setPasswordError(error instanceof Error ? error.message : "Failed to change password");
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   const handleLogout = async () => {
     if (confirm("Are you sure you want to logout?")) {
       await logout();
@@ -111,8 +164,7 @@ export default function SettingsPage() {
   const sections = [
     { id: "account", label: "Account", icon: User },
     { id: "appearance", label: "Appearance", icon: Palette },
-    { id: "language", label: "Language", icon: Globe },
-    { id: "notifications", label: "Notifications", icon: Bell },
+    { id: "security", label: "Security", icon: Lock },
   ];
 
   if (loading || !user) {
@@ -224,9 +276,35 @@ export default function SettingsPage() {
                       className="w-full px-4 py-2.5 mt-2 bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg text-[var(--foreground-muted)] cursor-not-allowed"
                     />
                     <p className="text-xs text-[var(--foreground-muted)] mt-2">
-                      Email cannot be changed as it's linked to your Google account
+                      Email cannot be changed
                     </p>
                   </div>
+                </div>
+
+                {/* Save Button */}
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={handleSaveSettings}
+                    disabled={isSaving}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-[var(--primary)] text-white rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-colors font-medium"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Check size={18} />
+                        Save Changes
+                      </>
+                    )}
+                  </button>
+                  {saveMessage && (
+                    <span className={`text-sm ${saveMessage.includes("success") ? "text-green-500" : "text-red-500"}`}>
+                      {saveMessage}
+                    </span>
+                  )}
                 </div>
               </div>
             )}
@@ -239,6 +317,7 @@ export default function SettingsPage() {
                   <p className="text-sm text-[var(--foreground-muted)]">Customize how LearnLens looks</p>
                 </div>
 
+                {/* Theme Selector */}
                 <div className="p-4 bg-[var(--surface)] rounded-xl border border-[var(--border)]">
                   <label className="block text-sm font-medium mb-4">Theme</label>
                   <div className="grid grid-cols-3 gap-3">
@@ -249,7 +328,7 @@ export default function SettingsPage() {
                     ].map((theme) => (
                       <button
                         key={theme.id}
-                        onClick={() => setLocalSettings({ ...localSettings, theme: theme.id })}
+                        onClick={() => handleThemeChange(theme.id)}
                         className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all ${
                           localSettings.theme === theme.id
                             ? "border-[var(--primary)] bg-[var(--primary-light)]"
@@ -264,128 +343,220 @@ export default function SettingsPage() {
                       </button>
                     ))}
                   </div>
-                </div>
-              </div>
-            )}
-
-            {/* Language Section */}
-            {activeSection === "language" && (
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-lg font-semibold mb-1">Language</h2>
-                  <p className="text-sm text-[var(--foreground-muted)]">Choose your preferred language</p>
+                  <p className="text-xs text-[var(--foreground-muted)] mt-4">
+                    Theme changes are applied immediately
+                  </p>
                 </div>
 
+                {/* Chat Theme Selector */}
                 <div className="p-4 bg-[var(--surface)] rounded-xl border border-[var(--border)]">
-                  <label className="block text-sm font-medium mb-4">Interface Language</label>
-                  <div className="space-y-2">
+                  <label className="block text-sm font-medium mb-4">Chat Style</label>
+                  <div className="space-y-3">
                     {[
-                      { id: "id" as Language, label: "Bahasa Indonesia", flag: "🇮🇩" },
-                      { id: "en" as Language, label: "English", flag: "🇺🇸" },
-                    ].map((lang) => (
+                      { 
+                        id: "modern" as const, 
+                        label: "Modern", 
+                        description: "Premium bubbles with avatars",
+                        preview: (
+                          <div className="flex flex-col gap-1.5 p-1.5">
+                            <div className="flex items-end gap-1 justify-end">
+                              <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-[9px] px-1.5 py-0.5 rounded-lg rounded-br-sm shadow-sm">Hi there!</div>
+                              <div className="w-4 h-4 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shrink-0"></div>
+                            </div>
+                            <div className="flex items-end gap-1 justify-start">
+                              <div className="w-4 h-4 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 shrink-0"></div>
+                              <div className="bg-[var(--surface-hover)] text-[9px] px-1.5 py-0.5 rounded-lg rounded-bl-sm border border-[var(--border)] shadow-sm">Hello!</div>
+                            </div>
+                          </div>
+                        )
+                      },
+                      { 
+                        id: "classic" as const, 
+                        label: "Classic", 
+                        description: "Traditional flat style like forums",
+                        preview: (
+                          <div className="flex flex-col gap-1 p-2">
+                            <div className="border-l-2 border-[var(--primary)] pl-2">
+                              <div className="text-[8px] text-[var(--primary)] font-medium">You</div>
+                              <div className="text-[10px]">Hi there!</div>
+                            </div>
+                            <div className="border-l-2 border-emerald-500 pl-2">
+                              <div className="text-[8px] text-emerald-500 font-medium">AI</div>
+                              <div className="text-[10px]">Hello! How can I help?</div>
+                            </div>
+                          </div>
+                        )
+                      },
+                      { 
+                        id: "minimal" as const, 
+                        label: "Minimal", 
+                        description: "Clean and compact, focus on text",
+                        preview: (
+                          <div className="flex flex-col gap-1 p-2">
+                            <div className="flex gap-2 items-start">
+                              <span className="text-[8px] text-[var(--primary)] font-bold shrink-0">You:</span>
+                              <span className="text-[10px]">Hi there!</span>
+                            </div>
+                            <div className="flex gap-2 items-start">
+                              <span className="text-[8px] text-emerald-500 font-bold shrink-0">AI:</span>
+                              <span className="text-[10px]">Hello! How can I help?</span>
+                            </div>
+                          </div>
+                        )
+                      },
+                    ].map((chatTheme) => (
                       <button
-                        key={lang.id}
-                        onClick={() => setLocalSettings({ ...localSettings, language: lang.id })}
-                        className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all ${
-                          localSettings.language === lang.id
+                        key={chatTheme.id}
+                        onClick={() => {
+                          setLocalSettings({ ...localSettings, chatTheme: chatTheme.id });
+                          updateSettings({ chatTheme: chatTheme.id });
+                        }}
+                        className={`w-full flex items-center gap-4 p-3 rounded-xl border transition-all ${
+                          localSettings.chatTheme === chatTheme.id
                             ? "border-[var(--primary)] bg-[var(--primary-light)]"
                             : "border-[var(--border)] hover:border-[var(--primary)]"
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl">{lang.flag}</span>
-                          <span className="font-medium">{lang.label}</span>
+                        {/* Preview */}
+                        <div className="w-28 h-16 bg-[var(--background)] rounded-lg border border-[var(--border)] overflow-hidden shrink-0">
+                          {chatTheme.preview}
                         </div>
-                        {localSettings.language === lang.id && (
-                          <Check size={20} className="text-[var(--primary)]" />
+                        {/* Text */}
+                        <div className="flex-1 text-left">
+                          <p className="font-medium text-sm">{chatTheme.label}</p>
+                          <p className="text-xs text-[var(--foreground-muted)]">{chatTheme.description}</p>
+                        </div>
+                        {localSettings.chatTheme === chatTheme.id && (
+                          <Check size={20} className="text-[var(--primary)] shrink-0" />
                         )}
                       </button>
                     ))}
                   </div>
                   <p className="text-xs text-[var(--foreground-muted)] mt-4">
-                    Note: AI responses will adapt to your material's language automatically
+                    Changes how chat messages are displayed
                   </p>
                 </div>
               </div>
             )}
 
-            {/* Notifications Section */}
-            {activeSection === "notifications" && (
+            {/* Security Section */}
+            {activeSection === "security" && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-lg font-semibold mb-1">Notifications</h2>
-                  <p className="text-sm text-[var(--foreground-muted)]">Manage notification preferences</p>
+                  <h2 className="text-lg font-semibold mb-1">Security</h2>
+                  <p className="text-sm text-[var(--foreground-muted)]">Manage your password and security settings</p>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-4 bg-[var(--surface)] rounded-xl border border-[var(--border)]">
-                    <div className="flex items-center gap-3">
-                      <Mail size={20} className="text-[var(--foreground-muted)]" />
-                      <div>
-                        <p className="font-medium text-sm">Email Notifications</p>
-                        <p className="text-xs text-[var(--foreground-muted)]">Receive updates via email</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setLocalSettings({ ...localSettings, emailNotifications: !localSettings.emailNotifications })}
-                      className={`relative w-12 h-6 rounded-full transition-colors ${
-                        localSettings.emailNotifications ? "bg-[var(--primary)]" : "bg-[var(--border)]"
-                      }`}
-                    >
-                      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                        localSettings.emailNotifications ? "translate-x-7" : "translate-x-1"
-                      }`} />
-                    </button>
+                <div className="p-4 bg-[var(--surface)] rounded-xl border border-[var(--border)]">
+                  <div className="flex items-center gap-2 mb-4">
+                    <KeyRound size={18} className="text-[var(--foreground-muted)]" />
+                    <label className="text-sm font-medium">Change Password</label>
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-[var(--surface)] rounded-xl border border-[var(--border)]">
-                    <div className="flex items-center gap-3">
-                      <Bell size={20} className="text-[var(--foreground-muted)]" />
-                      <div>
-                        <p className="font-medium text-sm">Sound Effects</p>
-                        <p className="text-xs text-[var(--foreground-muted)]">Play sounds for notifications</p>
+                  <div className="space-y-4">
+                    {/* Current Password */}
+                    <div>
+                      <label className="block text-xs font-medium text-[var(--foreground-muted)] mb-1.5">
+                        Current Password
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showCurrentPassword ? "text" : "password"}
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          className="w-full px-4 py-2.5 pr-10 bg-[var(--background)] border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                          placeholder="Enter current password"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                        >
+                          {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
                       </div>
                     </div>
+
+                    {/* New Password */}
+                    <div>
+                      <label className="block text-xs font-medium text-[var(--foreground-muted)] mb-1.5">
+                        New Password
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showNewPassword ? "text" : "password"}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          className="w-full px-4 py-2.5 pr-10 bg-[var(--background)] border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                          placeholder="Min. 6 characters"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                        >
+                          {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Confirm New Password */}
+                    <div>
+                      <label className="block text-xs font-medium text-[var(--foreground-muted)] mb-1.5">
+                        Confirm New Password
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="w-full px-4 py-2.5 pr-10 bg-[var(--background)] border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                          placeholder="Confirm new password"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                        >
+                          {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Error/Success Messages */}
+                    {passwordError && (
+                      <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">
+                        {passwordError}
+                      </p>
+                    )}
+                    {passwordMessage && (
+                      <p className="text-sm text-green-500 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-lg">
+                        {passwordMessage}
+                      </p>
+                    )}
+
+                    {/* Change Password Button */}
                     <button
-                      onClick={() => setLocalSettings({ ...localSettings, soundEnabled: !localSettings.soundEnabled })}
-                      className={`relative w-12 h-6 rounded-full transition-colors ${
-                        localSettings.soundEnabled ? "bg-[var(--primary)]" : "bg-[var(--border)]"
-                      }`}
+                      onClick={handleChangePassword}
+                      disabled={isChangingPassword}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-colors font-medium"
                     >
-                      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                        localSettings.soundEnabled ? "translate-x-7" : "translate-x-1"
-                      }`} />
+                      {isChangingPassword ? (
+                        <>
+                          <Loader2 size={18} className="animate-spin" />
+                          Changing Password...
+                        </>
+                      ) : (
+                        <>
+                          <Lock size={18} />
+                          Change Password
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
               </div>
             )}
-
-            {/* Save Button */}
-            <div className="mt-8 flex items-center gap-4">
-              <button
-                onClick={handleSaveSettings}
-                disabled={isSaving}
-                className="flex items-center gap-2 px-6 py-2.5 bg-[var(--primary)] text-white rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-colors font-medium"
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Check size={18} />
-                    Save Changes
-                  </>
-                )}
-              </button>
-              {saveMessage && (
-                <span className={`text-sm ${saveMessage.includes("success") ? "text-green-500" : "text-red-500"}`}>
-                  {saveMessage}
-                </span>
-              )}
-            </div>
 
             {/* Mobile Logout */}
             <div className="lg:hidden mt-8 pt-6 border-t border-[var(--border)]">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
@@ -13,9 +13,11 @@ import {
   FileText,
   Sparkles,
   Settings,
-  HelpCircle
+  HelpCircle,
+  Globe
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { useSettings } from "@/lib/settings-context";
 import { MaterialSummary } from "@/lib/api";
 import { SettingsModal } from "./SettingsModal";
 
@@ -24,17 +26,46 @@ interface SidebarProps {
   onNewMaterial: () => void;
 }
 
+type Language = "id" | "en";
+
 export function Sidebar({ materials, onNewMaterial }: SidebarProps) {
   const { user, logout, updateUser } = useAuth();
+  const { settings, updateSettings } = useSettings();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showLanguageMenu, setShowLanguageMenu] = useState(false);
+  const languageMenuRef = useRef<HTMLDivElement>(null);
 
   const handleModelChange = (model: string) => {
     if (user) {
       updateUser({ ...user, preferredModel: model });
     }
   };
+
+  const handleLanguageChange = (language: Language) => {
+    updateSettings({ language });
+    setShowLanguageMenu(false);
+  };
+
+  // Close language menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (languageMenuRef.current && !languageMenuRef.current.contains(event.target as Node)) {
+        setShowLanguageMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const languages = [
+    { id: "id" as Language, label: "Bahasa Indonesia", flag: "🇮🇩", short: "ID" },
+    { id: "en" as Language, label: "English", flag: "🇺🇸", short: "EN" },
+  ];
+
+  const currentLanguage = languages.find(l => l.id === settings.language) || languages[0];
 
   return (
     <>
@@ -60,17 +91,56 @@ export function Sidebar({ materials, onNewMaterial }: SidebarProps) {
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* Logo */}
+        {/* Logo with Language Selector */}
         <div className="p-6 border-b border-[var(--sidebar-hover)]">
-          <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-teal-400 flex items-center justify-center">
-              <Sparkles size={20} className="text-white" />
+          <div className="flex items-center justify-between">
+            <Link href="/dashboard" className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-teal-400 flex items-center justify-center">
+                <Sparkles size={20} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold">LearnLens</h1>
+                <p className="text-xs text-[var(--sidebar-text-muted)]">AI Tutoring</p>
+              </div>
+            </Link>
+
+            {/* Language Selector */}
+            <div className="relative" ref={languageMenuRef}>
+              <button
+                onClick={() => setShowLanguageMenu(!showLanguageMenu)}
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-[var(--sidebar-hover)] transition-colors text-[var(--sidebar-text-muted)] hover:text-[var(--sidebar-text)]"
+                title="Change Language"
+              >
+                <Globe size={16} />
+                <span className="text-xs font-medium">{currentLanguage.short}</span>
+              </button>
+
+              {/* Language Dropdown */}
+              {showLanguageMenu && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-[var(--surface)] rounded-xl shadow-xl border border-[var(--border)] overflow-hidden z-50">
+                  <div className="py-1">
+                    {languages.map((lang) => (
+                      <button
+                        key={lang.id}
+                        onClick={() => handleLanguageChange(lang.id)}
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-[var(--surface-hover)] transition-colors ${
+                          settings.language === lang.id 
+                            ? "text-[var(--primary)] bg-[var(--primary-light)]" 
+                            : "text-[var(--foreground)]"
+                        }`}
+                      >
+                        <span className="text-lg">{lang.flag}</span>
+                        <span className="text-sm font-medium">{lang.label}</span>
+                        {settings.language === lang.id && (
+                          <span className="ml-auto text-[var(--primary)]">✓</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-            <div>
-              <h1 className="text-xl font-bold">LearnLens</h1>
-              <p className="text-xs text-[var(--sidebar-text-muted)]">AI Tutoring</p>
-            </div>
-          </Link>
+          </div>
         </div>
 
         {/* New Material Button */}

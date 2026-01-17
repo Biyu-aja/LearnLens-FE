@@ -14,7 +14,7 @@ interface QuizCardProps {
   onToggleHint: () => void;
 }
 
-function QuizCard({ quiz, index, selectedAnswer, revealed, showHint, onSelect, onToggleHint }: QuizCardProps) {
+export function QuizCard({ quiz, index, selectedAnswer, revealed, showHint, onSelect, onToggleHint }: QuizCardProps) {
   // Get hint from quiz data (AI-generated) or show a fallback message
   const hintText = quiz.hint || "Think carefully about the concepts covered in the material.";
   const hasHint = !!quiz.hint;
