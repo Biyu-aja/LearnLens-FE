@@ -18,10 +18,27 @@ import { SettingsModal } from "@/components/SettingsModal";
 import { QuizCard } from "@/components/QuizPanel";
 import { materialsAPI, aiAPI, authAPI, MaterialSummary, Quiz, AIModel } from "@/lib/api";
 
+// Supported AI languages
+const AI_LANGUAGES = [
+  { id: "en", label: "English", flag: "🇬🇧" },
+  { id: "id", label: "Indonesian", flag: "🇮🇩" },
+  { id: "es", label: "Spanish", flag: "🇪🇸" },
+  { id: "fr", label: "French", flag: "🇫🇷" },
+  { id: "de", label: "German", flag: "🇩🇪" },
+  { id: "pt", label: "Portuguese", flag: "🇵🇹" },
+  { id: "zh", label: "Chinese", flag: "🇨🇳" },
+  { id: "ja", label: "Japanese", flag: "🇯🇵" },
+  { id: "ko", label: "Korean", flag: "🇰🇷" },
+  { id: "ar", label: "Arabic", flag: "🇸🇦" },
+] as const;
+
+type AILanguage = typeof AI_LANGUAGES[number]["id"];
+
 type QuizConfig = {
   questionCount: number;
   difficulty: "easy" | "medium" | "hard";
   model: string;
+  language: AILanguage;
 };
 
 export default function QuizPage() {
@@ -45,6 +62,7 @@ export default function QuizPage() {
     questionCount: 10,
     difficulty: "medium",
     model: user?.preferredModel || "gemini-2.5-flash-lite",
+    language: "en",
   });
 
   // Quiz state
@@ -124,6 +142,7 @@ export default function QuizPage() {
         model: config.model,
         materialIds: selectedMaterials,
         customText: customText.trim(),
+        language: config.language,
       });
       setQuizzes(response.quizzes);
     } catch (error) {
@@ -385,6 +404,43 @@ export default function QuizPage() {
                           </div>
                         );
                       })}
+                    </div>
+                  </div>
+
+                  {/* Language */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium mb-2">Quiz Language</label>
+                    <div className="grid grid-cols-5 gap-2">
+                      {AI_LANGUAGES.slice(0, 5).map((lang) => (
+                        <button
+                          key={lang.id}
+                          onClick={() => setConfig(prev => ({ ...prev, language: lang.id }))}
+                          className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all ${
+                            config.language === lang.id
+                              ? "bg-[var(--primary)] text-white"
+                              : "bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)]"
+                          }`}
+                        >
+                          <span className="text-lg">{lang.flag}</span>
+                          <span className="text-xs">{lang.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-5 gap-2 mt-2">
+                      {AI_LANGUAGES.slice(5).map((lang) => (
+                        <button
+                          key={lang.id}
+                          onClick={() => setConfig(prev => ({ ...prev, language: lang.id }))}
+                          className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all ${
+                            config.language === lang.id
+                              ? "bg-[var(--primary)] text-white"
+                              : "bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)]"
+                          }`}
+                        >
+                          <span className="text-lg">{lang.flag}</span>
+                          <span className="text-xs">{lang.label}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>

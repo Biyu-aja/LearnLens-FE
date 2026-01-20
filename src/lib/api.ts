@@ -132,7 +132,7 @@ export const materialsAPI = {
         });
     },
 
-    generateSummary: (id: string, config?: { model?: string; customText?: string }) =>
+    generateSummary: (id: string, config?: { model?: string; customText?: string; language?: string }) =>
         fetchAPI<{ success: boolean; summary: string }>(`/api/materials/${id}/summary`, {
             method: "POST",
             body: JSON.stringify(config || {}),
@@ -200,12 +200,12 @@ export const chatAPI = {
     getMessages: (materialId: string) =>
         fetchAPI<{ success: boolean; messages: Message[] }>(`/api/chat/${materialId}`),
 
-    sendMessage: (materialId: string, message: string) =>
+    sendMessage: (materialId: string, message: string, language: string = "en") =>
         fetchAPI<{ success: boolean; userMessage: Message; assistantMessage: Message }>(
             `/api/chat/${materialId}`,
             {
                 method: "POST",
-                body: JSON.stringify({ message }),
+                body: JSON.stringify({ message, language }),
             }
         ),
 
@@ -216,7 +216,8 @@ export const chatAPI = {
         onUserMessage?: (message: Message) => void,
         onComplete?: (message: Message) => void,
         onError?: (error: string) => void,
-        signal?: AbortSignal
+        signal?: AbortSignal,
+        language: string = "en"
     ) => {
         const token = localStorage.getItem("learnlens_token");
 
@@ -227,7 +228,7 @@ export const chatAPI = {
                     "Content-Type": "application/json",
                     ...(token && { Authorization: `Bearer ${token}` }),
                 },
-                body: JSON.stringify({ message }),
+                body: JSON.stringify({ message, language }),
                 signal, // Pass abort signal to fetch
             });
 
@@ -310,6 +311,7 @@ export const aiAPI = {
         model?: string;
         materialIds?: string[];
         customText?: string;
+        language?: string;
     } = {}) =>
         fetchAPI<{ success: boolean; quizzes: Quiz[] }>(`/api/ai/${materialId}/quiz`, {
             method: "POST",
@@ -320,10 +322,10 @@ export const aiAPI = {
         fetchAPI<{ success: boolean; quizzes: Quiz[] }>(`/api/ai/${materialId}/quiz`),
 
     // Glossary
-    generateGlossary: (materialId: string, model?: string) =>
+    generateGlossary: (materialId: string, model?: string, language: string = "en") =>
         fetchAPI<{ success: boolean; glossary: GlossaryTerm[] }>(`/api/ai/${materialId}/glossary`, {
             method: "POST",
-            body: JSON.stringify({ model }),
+            body: JSON.stringify({ model, language }),
         }),
 
     getGlossary: (materialId: string) =>
@@ -345,6 +347,21 @@ export const aiAPI = {
         fetchAPI<{ success: boolean; cleanedContent: string; removedChars: number }>(`/api/ai/${materialId}/cleanup`, {
             method: "POST",
             body: JSON.stringify({ content }),
+        }),
+
+    // Flashcards
+    generateFlashcards: (materialId: string, count: number = 10, language: string = "en") =>
+        fetchAPI<{ success: boolean; flashcards: Flashcard[] }>(`/api/ai/${materialId}/flashcards`, {
+            method: "POST",
+            body: JSON.stringify({ count, language }),
+        }),
+
+    getFlashcards: (materialId: string) =>
+        fetchAPI<{ success: boolean; flashcards: Flashcard[] }>(`/api/ai/${materialId}/flashcards`),
+
+    deleteFlashcards: (materialId: string) =>
+        fetchAPI<{ success: boolean }>(`/api/ai/${materialId}/flashcards`, {
+            method: "DELETE",
         }),
 };
 
@@ -417,6 +434,12 @@ export interface Quiz {
 export interface GlossaryTerm {
     term: string;
     definition: string;
+    category?: string;
+}
+
+export interface Flashcard {
+    front: string;
+    back: string;
     category?: string;
 }
 

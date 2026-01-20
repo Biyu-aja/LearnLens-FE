@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Trash2, Settings, Edit, ChevronDown, FileText, HelpCircle, Book, Sparkles, Square, User, Bot, UserIcon } from "lucide-react";
+import { Send, Loader2, Trash2, Settings, Edit, ChevronDown, FileText, HelpCircle, Book, Sparkles, Square, User, Bot, UserIcon, Layers } from "lucide-react";
 import { Message } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
@@ -22,13 +22,18 @@ interface ChatPanelProps {
   onGenerateSummary: () => Promise<void>;
   onGenerateQuiz: () => Promise<void>;
   onGenerateGlossary?: () => Promise<void>;
+  onGenerateFlashcards?: () => Promise<void>;
   onAddTermToGlossary?: (term: string) => void;
   isSummaryLoading: boolean;
   isQuizLoading: boolean;
   isGlossaryLoading?: boolean;
+  isFlashcardsLoading?: boolean;
   hasSummary: boolean;
   hasQuiz: boolean;
   hasGlossary?: boolean;
+  hasFlashcards?: boolean;
+  language?: string;
+  onLanguageChange?: (lang: string) => void;
 }
 
 export function ChatPanel({ 
@@ -44,13 +49,18 @@ export function ChatPanel({
   onGenerateSummary,
   onGenerateQuiz,
   onGenerateGlossary,
+  onGenerateFlashcards,
   onAddTermToGlossary,
   isSummaryLoading,
   isQuizLoading,
   isGlossaryLoading,
+  isFlashcardsLoading,
   hasSummary,
   hasQuiz,
-  hasGlossary
+  hasGlossary,
+  hasFlashcards,
+  language = "id",
+  onLanguageChange
 }: ChatPanelProps) {
   const { user } = useAuth();
   const { settings } = useSettings();
@@ -532,7 +542,7 @@ export function ChatPanel({
         {onGenerateGlossary && (
           <button
             onClick={onGenerateGlossary}
-            disabled={isSummaryLoading || isQuizLoading || isGlossaryLoading}
+            disabled={isSummaryLoading || isQuizLoading || isGlossaryLoading || isFlashcardsLoading}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
               hasGlossary 
                 ? "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400"
@@ -546,6 +556,26 @@ export function ChatPanel({
             )}
             <span>{hasGlossary ? "View Glossary" : "Generate Glossary"}</span>
             {hasGlossary && <Sparkles size={12} className="text-amber-500" />}
+          </button>
+        )}
+
+        {onGenerateFlashcards && (
+          <button
+            onClick={onGenerateFlashcards}
+            disabled={isSummaryLoading || isQuizLoading || isGlossaryLoading || isFlashcardsLoading}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
+              hasFlashcards 
+                ? "bg-cyan-50 dark:bg-cyan-900/20 border-cyan-200 dark:border-cyan-800 text-cyan-700 dark:text-cyan-400"
+                : "bg-[var(--background)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+            } disabled:opacity-50`}
+          >
+            {isFlashcardsLoading ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Layers size={14} />
+            )}
+            <span>{hasFlashcards ? "View Flashcards" : "Generate Flashcards"}</span>
+            {hasFlashcards && <Sparkles size={12} className="text-cyan-500" />}
           </button>
         )}
       </div>

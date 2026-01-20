@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Loader2, Settings, Check, Sparkles, Zap, Crown, Brain, Star, Type, FileText, Link, Key, Eye, EyeOff, Wifi, WifiOff, CheckCircle, XCircle } from "lucide-react";
+import { X, Loader2, Settings, Check, Sparkles, Zap, Crown, Brain, Star, Type, FileText, Link, Key, Eye, EyeOff, Wifi, WifiOff, CheckCircle, XCircle, Globe } from "lucide-react";
 import { authAPI, AIModel } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  language?: "id" | "en";
+  onLanguageChange?: (lang: "id" | "en") => void;
 }
 
 const tierIcons = {

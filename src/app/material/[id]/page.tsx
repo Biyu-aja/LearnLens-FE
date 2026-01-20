@@ -10,28 +10,33 @@ import {
   ArrowLeft, 
   MoreVertical,
   Book,
-  BarChart3
+  BarChart3,
+  Layers
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { useSettings } from "@/lib/settings-context";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatPanel } from "@/components/ChatPanel";
 import { SummaryPanel } from "@/components/SummaryPanel";
 import { QuizPanel } from "@/components/QuizPanel";
 import { GlossaryPanel } from "@/components/GlossaryPanel";
+import { FlashcardPanel } from "@/components/FlashcardPanel";
 import { MaterialUpload } from "@/components/MaterialUpload";
 import { EditMaterialModal } from "@/components/EditMaterialModal";
 import { SettingsModal } from "@/components/SettingsModal";
 import { QuizConfigModal, QuizConfig } from "@/components/QuizConfigModal";
 import { SummaryConfigModal, SummaryConfig } from "@/components/SummaryConfigModal";
 import { MaterialOptionsModal } from "@/components/MaterialOptionsModal";
-import { materialsAPI, chatAPI, aiAPI, Material, MaterialSummary, Message, Quiz, GlossaryTerm } from "@/lib/api";
+import { materialsAPI, chatAPI, aiAPI, Material, MaterialSummary, Message, Quiz, GlossaryTerm, Flashcard } from "@/lib/api";
 import { AnalyticsPanel } from "@/components/AnalyticsPanel";
+import { AILanguage } from "@/components/MaterialOptionsModal";
 
-type Tab = "chat" | "summary" | "quiz" | "glossary" | "analytics";
+type Tab = "chat" | "summary" | "quiz" | "glossary" | "flashcards" | "analytics";
 
 export default function MaterialPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { user, loading: authLoading } = useAuth();
+  const { settings } = useSettings();
   const router = useRouter();
   
   const [material, setMaterial] = useState<Material | null>(null);
@@ -39,12 +44,15 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
   const [messages, setMessages] = useState<Message[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [glossary, setGlossary] = useState<GlossaryTerm[] | null>(null);
+  const [flashcards, setFlashcards] = useState<Flashcard[] | null>(null);
+  const [aiLanguage, setAiLanguage] = useState<AILanguage>("en");
   const [activeTab, setActiveTab] = useState<Tab>("chat");
   const [isLoading, setIsLoading] = useState(true);
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [isQuizLoading, setIsQuizLoading] = useState(false);
   const [isGlossaryLoading, setIsGlossaryLoading] = useState(false);
+  const [isFlashcardsLoading, setIsFlashcardsLoading] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -68,6 +76,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
       fetchMaterial();
       fetchMaterials();
       fetchGlossary();
+      fetchFlashcards();
     }
   }, [user, id]);
 
@@ -100,6 +109,15 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
       setGlossary(response.glossary.length > 0 ? response.glossary : null);
     } catch (error) {
       console.error("Failed to fetch glossary:", error);
+    }
+  };
+
+  const fetchFlashcards = async () => {
+    try {
+      const response = await aiAPI.getFlashcards(id);
+      setFlashcards(response.flashcards.length > 0 ? response.flashcards : null);
+    } catch (error) {
+      console.error("Failed to fetch flashcards:", error);
     }
   };
 
@@ -174,6 +192,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
         },
         // Abort signal
         abortControllerRef.current?.signal
+        // Note: Chat uses natural language detection - responds in user's language
       );
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -302,6 +321,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
           ));
           setIsChatLoading(false);
         }
+        // Note: Chat uses natural language detection - responds in user's language
       );
     } catch (error) {
       console.error("Failed to regenerate:", error);
@@ -325,6 +345,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
       const response = await materialsAPI.generateSummary(id, {
         model: config.model,
         customText: config.customText,
+        language: aiLanguage,
       });
       setMaterial((prev) => prev ? { ...prev, summary: response.summary } : null);
       setActiveTab("summary");
@@ -354,6 +375,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
         model: config.model,
         materialIds: config.materialIds,
         customText: config.customText,
+        language: aiLanguage,
       });
       setQuizzes(response.quizzes);
       setActiveTab("quiz");
@@ -408,7 +430,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
   const handleGenerateGlossary = async () => {
     setIsGlossaryLoading(true);
     try {
-      const response = await aiAPI.generateGlossary(id);
+      const response = await aiAPI.generateGlossary(id, undefined, aiLanguage);
       setGlossary(response.glossary);
       setActiveTab("glossary");
     } catch (error) {
@@ -450,6 +472,37 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
     }
   };
 
+  const handleGenerateFlashcards = async () => {
+    // If already has flashcards, just switch to tab
+    if (flashcards && flashcards.length > 0) {
+      setActiveTab("flashcards");
+      return;
+    }
+    
+    setIsFlashcardsLoading(true);
+    try {
+      const response = await aiAPI.generateFlashcards(id, 10, aiLanguage);
+      setFlashcards(response.flashcards);
+      setActiveTab("flashcards");
+    } catch (error) {
+      console.error("Failed to generate flashcards:", error);
+    } finally {
+      setIsFlashcardsLoading(false);
+    }
+  };
+
+  const handleDeleteFlashcards = async () => {
+    if (!confirm("Are you sure you want to delete these flashcards?")) return;
+    
+    try {
+      await aiAPI.deleteFlashcards(id);
+      setFlashcards(null);
+      setActiveTab("chat");
+    } catch (error) {
+      console.error("Failed to delete flashcards:", error);
+    }
+  };
+
   if (authLoading || isLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -481,6 +534,10 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
 
   if (glossary && glossary.length > 0) {
     tabs.push({ id: "glossary", label: "Glossary", icon: Book });
+  }
+
+  if (flashcards && flashcards.length > 0) {
+    tabs.push({ id: "flashcards", label: "Flashcards", icon: Layers });
   }
 
   // Always show Analytics tab
@@ -573,13 +630,16 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
               onGenerateSummary={handleGenerateSummary}
               onGenerateQuiz={handleGenerateQuiz}
               onGenerateGlossary={handleGenerateGlossary}
+              onGenerateFlashcards={handleGenerateFlashcards}
               onAddTermToGlossary={handleAddTermToGlossary}
               isSummaryLoading={isSummaryLoading}
               isQuizLoading={isQuizLoading}
               isGlossaryLoading={isGlossaryLoading}
+              isFlashcardsLoading={isFlashcardsLoading}
               hasSummary={!!material.summary}
               hasQuiz={quizzes.length > 0}
               hasGlossary={glossary !== null && glossary.length > 0}
+              hasFlashcards={flashcards !== null && flashcards.length > 0}
             />
           )}
           {activeTab === "summary" && (
@@ -607,6 +667,15 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
               onGenerateGlossary={handleGenerateGlossary}
               onDeleteGlossary={handleDeleteGlossary}
               isLoading={isGlossaryLoading}
+            />
+          )}
+          {activeTab === "flashcards" && (
+            <FlashcardPanel
+              flashcards={flashcards}
+              onGenerateFlashcards={handleGenerateFlashcards}
+              onDeleteFlashcards={handleDeleteFlashcards}
+              isLoading={isFlashcardsLoading}
+              materialId={id}
             />
           )}
           {activeTab === "analytics" && (
@@ -671,6 +740,8 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
           onEditContent={() => setShowEdit(true)}
           onDelete={handleDeleteMaterial}
           onRefresh={fetchMaterial}
+          language={aiLanguage}
+          onLanguageChange={setAiLanguage}
         />
       )}
     </div>

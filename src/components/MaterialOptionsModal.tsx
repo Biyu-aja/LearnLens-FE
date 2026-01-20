@@ -1,8 +1,24 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { X, Pencil, Trash2, Upload, FileText, Loader2 } from "lucide-react";
+import { X, Pencil, Trash2, Upload, FileText, Loader2, Globe, ChevronDown, Check } from "lucide-react";
 import { materialsAPI } from "@/lib/api";
+
+// Supported AI languages
+const AI_LANGUAGES = [
+  { id: "en", label: "English", flag: "🇬🇧" },
+  { id: "id", label: "Indonesian", flag: "🇮🇩" },
+  { id: "es", label: "Spanish", flag: "🇪🇸" },
+  { id: "fr", label: "French", flag: "🇫🇷" },
+  { id: "de", label: "German", flag: "🇩🇪" },
+  { id: "pt", label: "Portuguese", flag: "🇵🇹" },
+  { id: "zh", label: "Chinese", flag: "🇨🇳" },
+  { id: "ja", label: "Japanese", flag: "🇯🇵" },
+  { id: "ko", label: "Korean", flag: "🇰🇷" },
+  { id: "ar", label: "Arabic", flag: "🇸🇦" },
+] as const;
+
+export type AILanguage = typeof AI_LANGUAGES[number]["id"];
 
 interface MaterialOptionsModalProps {
   isOpen: boolean;
@@ -12,6 +28,8 @@ interface MaterialOptionsModalProps {
   onEditContent: () => void;
   onDelete: () => void;
   onRefresh: () => void;
+  language?: AILanguage;
+  onLanguageChange?: (lang: AILanguage) => void;
 }
 
 export function MaterialOptionsModal({
@@ -22,10 +40,13 @@ export function MaterialOptionsModal({
   onEditContent,
   onDelete,
   onRefresh,
+  language = "en",
+  onLanguageChange,
 }: MaterialOptionsModalProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
@@ -43,7 +64,7 @@ export function MaterialOptionsModal({
     ];
     
     if (!allowedTypes.includes(file.type)) {
-      setError("Format file tidak didukung. Gunakan PDF, DOCX, TXT, atau MD.");
+      setError("Unsupported file format. Use PDF, DOCX, TXT, or MD.");
       return;
     }
 
@@ -52,14 +73,14 @@ export function MaterialOptionsModal({
 
     try {
       await materialsAPI.appendFile(materialId, file);
-      setSuccess("File berhasil ditambahkan!");
+      setSuccess("File added successfully!");
       onRefresh();
       setTimeout(() => {
         setSuccess(null);
         onClose();
       }, 1500);
     } catch (err: any) {
-      setError(err.message || "Gagal mengunggah file");
+      setError(err.message || "Failed to upload file");
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
@@ -72,6 +93,15 @@ export function MaterialOptionsModal({
     onDelete();
     onClose();
   };
+
+  const handleLanguageSelect = (langId: AILanguage) => {
+    if (onLanguageChange) {
+      onLanguageChange(langId);
+    }
+    setShowLanguageDropdown(false);
+  };
+
+  const currentLanguage = AI_LANGUAGES.find(l => l.id === language) || AI_LANGUAGES[0];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -90,7 +120,7 @@ export function MaterialOptionsModal({
               <FileText size={18} className="text-[var(--primary)]" />
             </div>
             <div>
-              <h2 className="font-semibold text-[var(--foreground)] text-sm">Kelola Material</h2>
+              <h2 className="font-semibold text-[var(--foreground)] text-sm">Material Options</h2>
               <p className="text-xs text-[var(--foreground-muted)] truncate max-w-[180px]">
                 {materialTitle}
               </p>
@@ -142,13 +172,57 @@ export function MaterialOptionsModal({
             </div>
             <div className="text-left">
               <p className="text-sm font-medium text-[var(--foreground)]">
-                {isUploading ? "Mengunggah..." : "Tambah File"}
+                {isUploading ? "Uploading..." : "Add File"}
               </p>
               <p className="text-xs text-[var(--foreground-muted)]">
-                PDF, Word, atau Text
+                PDF, Word, or Text
               </p>
             </div>
           </button>
+
+          {/* AI Language Selector */}
+          {onLanguageChange && (
+            <div className="relative">
+              <button
+                onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
+                className="w-full flex items-center gap-3 p-3 rounded-xl border border-[var(--border)] hover:border-cyan-400 hover:bg-cyan-50/50 dark:hover:bg-cyan-900/10 transition-all group"
+              >
+                <div className="p-2 bg-cyan-100 dark:bg-cyan-900/30 rounded-lg group-hover:bg-cyan-200 dark:group-hover:bg-cyan-900/50 transition-colors">
+                  <Globe size={18} className="text-cyan-600 dark:text-cyan-400" />
+                </div>
+                <div className="text-left flex-1">
+                  <p className="text-sm font-medium text-[var(--foreground)]">AI Response Language</p>
+                  <p className="text-xs text-[var(--foreground-muted)]">
+                    For Summary, Quiz, Glossary, Flashcards
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 px-2 py-1 rounded-lg bg-[var(--surface-hover)] text-sm">
+                  <span>{currentLanguage.flag}</span>
+                  <span className="text-xs font-medium">{currentLanguage.label}</span>
+                  <ChevronDown size={14} className={`transition-transform ${showLanguageDropdown ? "rotate-180" : ""}`} />
+                </div>
+              </button>
+
+              {/* Language Dropdown */}
+              {showLanguageDropdown && (
+                <div className="absolute left-0 right-0 mt-1 bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-lg z-10 max-h-60 overflow-y-auto">
+                  {AI_LANGUAGES.map((lang) => (
+                    <button
+                      key={lang.id}
+                      onClick={() => handleLanguageSelect(lang.id)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-[var(--surface-hover)] transition-colors first:rounded-t-xl last:rounded-b-xl"
+                    >
+                      <span className="text-lg">{lang.flag}</span>
+                      <span className="flex-1 text-left text-sm text-[var(--foreground)]">{lang.label}</span>
+                      {language === lang.id && (
+                        <Check size={16} className="text-cyan-500" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Edit Content Button */}
           <button
@@ -162,9 +236,9 @@ export function MaterialOptionsModal({
               <Pencil size={18} className="text-purple-600 dark:text-purple-400" />
             </div>
             <div className="text-left">
-              <p className="text-sm font-medium text-[var(--foreground)]">Edit Konten</p>
+              <p className="text-sm font-medium text-[var(--foreground)]">Edit Content</p>
               <p className="text-xs text-[var(--foreground-muted)]">
-                Ubah atau cleanup dengan AI
+                Modify or cleanup with AI
               </p>
             </div>
           </button>
@@ -181,9 +255,9 @@ export function MaterialOptionsModal({
               <Trash2 size={18} className="text-red-600 dark:text-red-400" />
             </div>
             <div className="text-left">
-              <p className="text-sm font-medium text-red-600 dark:text-red-400">Hapus Material</p>
+              <p className="text-sm font-medium text-red-600 dark:text-red-400">Delete Material</p>
               <p className="text-xs text-red-500/70 dark:text-red-400/70">
-                Tidak bisa dikembalikan
+                This action cannot be undone
               </p>
             </div>
           </button>
