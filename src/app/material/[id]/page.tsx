@@ -8,7 +8,7 @@ import {
   FileText, 
   HelpCircle, 
   ArrowLeft, 
-  Trash2,
+  MoreVertical,
   Book,
   BarChart3
 } from "lucide-react";
@@ -23,7 +23,8 @@ import { EditMaterialModal } from "@/components/EditMaterialModal";
 import { SettingsModal } from "@/components/SettingsModal";
 import { QuizConfigModal, QuizConfig } from "@/components/QuizConfigModal";
 import { SummaryConfigModal, SummaryConfig } from "@/components/SummaryConfigModal";
-import { materialsAPI, chatAPI, aiAPI, analyticsAPI, Material, MaterialSummary, Message, Quiz, GlossaryTerm } from "@/lib/api";
+import { MaterialOptionsModal } from "@/components/MaterialOptionsModal";
+import { materialsAPI, chatAPI, aiAPI, Material, MaterialSummary, Message, Quiz, GlossaryTerm } from "@/lib/api";
 import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 
 type Tab = "chat" | "summary" | "quiz" | "glossary" | "analytics";
@@ -49,12 +50,10 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showQuizConfig, setShowQuizConfig] = useState(false);
   const [showSummaryConfig, setShowSummaryConfig] = useState(false);
+  const [showMaterialOptions, setShowMaterialOptions] = useState(false);
 
   // AbortController for stopping stream
   const abortControllerRef = useRef<AbortController | null>(null);
-  
-  // Study session tracking
-  const sessionIdRef = useRef<string | null>(null);
 
   // Redirect to home if not logged in
   useEffect(() => {
@@ -71,30 +70,6 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
       fetchGlossary();
     }
   }, [user, id]);
-
-  // Track study session
-  useEffect(() => {
-    if (user && id && material) {
-      // Start session when material page is opened
-      const startSession = async () => {
-        try {
-          const response = await analyticsAPI.startSession(id);
-          sessionIdRef.current = response.session.id;
-        } catch (error) {
-          console.error("Failed to start session:", error);
-        }
-      };
-      startSession();
-
-      // End session on unmount or navigation
-      return () => {
-        if (sessionIdRef.current) {
-          analyticsAPI.endSession(sessionIdRef.current).catch(console.error);
-          sessionIdRef.current = null;
-        }
-      };
-    }
-  }, [user, id, material]);
 
   const fetchMaterial = async () => {
     try {
@@ -543,11 +518,11 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
               </div>
             </div>
             <button
-              onClick={handleDeleteMaterial}
-              className="p-1.5 sm:p-2 text-[var(--foreground-muted)] hover:text-[var(--error)] hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors shrink-0"
-              title="Delete material"
+              onClick={() => setShowMaterialOptions(true)}
+              className="p-1.5 sm:p-2 text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)] rounded-lg transition-colors shrink-0"
+              title="Material options"
             >
-              <Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" />
+              <MoreVertical size={16} className="sm:w-[18px] sm:h-[18px]" />
             </button>
           </div>
 
@@ -583,7 +558,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
         </header>
 
         {/* Tab content */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-auto">
           {activeTab === "chat" && (
             <ChatPanel
               messages={messages}
@@ -683,6 +658,19 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
           onClose={() => setShowSummaryConfig(false)}
           onGenerate={handleSummaryConfigGenerate}
           currentMaterialTitle={material.title}
+        />
+      )}
+
+      {/* Material Options Modal */}
+      {material && (
+        <MaterialOptionsModal
+          isOpen={showMaterialOptions}
+          onClose={() => setShowMaterialOptions(false)}
+          materialId={material.id}
+          materialTitle={material.title}
+          onEditContent={() => setShowEdit(true)}
+          onDelete={handleDeleteMaterial}
+          onRefresh={fetchMaterial}
         />
       )}
     </div>

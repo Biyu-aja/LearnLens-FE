@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { X, Loader2, Save } from "lucide-react";
-import { materialsAPI } from "@/lib/api";
+import { useState, useEffect } from "react";
+import { X, Loader2, Save, Sparkles, Trash2, AlertTriangle } from "lucide-react";
+import { materialsAPI, aiAPI } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 
 interface EditMaterialModalProps {
   isOpen: boolean;
@@ -12,6 +13,9 @@ interface EditMaterialModalProps {
   initialContent: string;
   onUpdate: () => void;
 }
+
+// Max context default (from user settings, default 8000)
+const DEFAULT_MAX_CONTEXT = 8000;
 
 export function EditMaterialModal({ 
   isOpen, 
@@ -24,9 +28,27 @@ export function EditMaterialModal({
   const [title, setTitle] = useState(initialTitle);
   const [content, setContent] = useState(initialContent);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCleaning, setIsCleaning] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const { user } = useAuth();
+
+  // Reset state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setTitle(initialTitle);
+      setContent(initialContent);
+      setError("");
+      setSuccess("");
+    }
+  }, [isOpen, initialTitle, initialContent]);
 
   if (!isOpen) return null;
+
+  const maxContext = user?.maxContext || DEFAULT_MAX_CONTEXT;
+  const contentLength = content.length;
+  const isOverLimit = contentLength > maxContext;
+  const usagePercent = Math.min((contentLength / maxContext) * 100, 100);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,10 +56,6 @@ export function EditMaterialModal({
     setError("");
 
     try {
-      // We need to implement update endpoint in API first, but assuming it exists or we add it
-      // For now, let's create a new version of materialsAPI.update, or use a workaround
-      // Since we don't have a direct 'update' in our api.ts yet, I'll add it there next.
-      // But for this component:
       await materialsAPI.update(materialId, { title, content });
       onUpdate();
       onClose();
@@ -46,6 +64,41 @@ export function EditMaterialModal({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleAICleanup = async () => {
+    setIsCleaning(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const response = await aiAPI.cleanupContent(materialId, content);
+      setContent(response.cleanedContent);
+      setSuccess(`Berhasil menghapus ${response.removedChars.toLocaleString()} karakter tidak penting!`);
+      setTimeout(() => setSuccess(""), 5000);
+    } catch (err: any) {
+      setError(err.message || "Gagal membersihkan konten");
+    } finally {
+      setIsCleaning(false);
+    }
+  };
+
+  const handleClearContent = () => {
+    if (confirm("Yakin ingin menghapus semua konten? Aksi ini tidak bisa dibatalkan.")) {
+      setContent("");
+    }
+  };
+
+  const getUsageColor = () => {
+    if (usagePercent >= 100) return "bg-red-500";
+    if (usagePercent >= 80) return "bg-amber-500";
+    return "bg-green-500";
+  };
+
+  const getUsageTextColor = () => {
+    if (isOverLimit) return "text-red-500";
+    if (usagePercent >= 80) return "text-amber-500";
+    return "text-[var(--foreground-muted)]";
   };
 
   return (
@@ -64,8 +117,9 @@ export function EditMaterialModal({
 
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
           <div className="p-6 flex-1 flex flex-col gap-4 overflow-y-auto">
+            {/* Title */}
             <div>
-              <label className="block text-sm font-medium mb-1.5">Title</label>
+              <label className="block text-sm font-medium mb-1.5">Judul</label>
               <input
                 type="text"
                 value={title}
@@ -73,59 +127,127 @@ export function EditMaterialModal({
                 className="w-full px-4 py-2 bg-[var(--background)] border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--primary)] outline-none"
               />
             </div>
+
+            {/* Content Section */}
             <div className="flex-1 flex flex-col min-h-[300px]">
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-sm font-medium">Content</label>
-                <div className="relative">
-                  <input
-                    type="file"
-                    id="append-file"
-                    className="hidden"
-                    accept=".txt,.pdf"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      
-                      try {
-                        setIsLoading(true);
-                        const res = await materialsAPI.parse(file);
-                        const separator = content ? "\n\n--- NEW MATERIAL ---\n\n" : "";
-                        setContent((prev) => prev + separator + res.content);
-                      } catch (err) {
-                        setError("Failed to parse file");
-                      } finally {
-                        setIsLoading(false);
-                        // Reset input
-                        e.target.value = "";
-                      }
-                    }}
-                    disabled={isLoading}
-                  />
-                  <label
-                    htmlFor="append-file"
-                    className={`text-xs px-2 py-1 bg-[var(--surface-hover)] hover:bg-[var(--border)] rounded cursor-pointer transition-colors ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
+              {/* Header with actions */}
+              <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                <label className="block text-sm font-medium">Konten</label>
+                <div className="flex items-center gap-2">
+                  {/* AI Cleanup Button */}
+                  <button
+                    type="button"
+                    onClick={handleAICleanup}
+                    disabled={isCleaning || !content.trim()}
+                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:opacity-90 disabled:opacity-50 transition-all"
+                    title="AI akan menghapus bagian tidak penting seperti daftar isi, daftar gambar, halaman kosong, dll"
                   >
-                    + Add File
-                  </label>
+                    {isCleaning ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Sparkles size={14} />
+                    )}
+                    {isCleaning ? "Membersihkan..." : "AI Cleanup"}
+                  </button>
+
+                  {/* Add File Button */}
+                  <div className="relative">
+                    <input
+                      type="file"
+                      id="append-file"
+                      className="hidden"
+                      accept=".txt,.pdf,.docx,.doc,.md"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        
+                        try {
+                          setIsLoading(true);
+                          const res = await materialsAPI.parse(file);
+                          const separator = content ? "\n\n--- TAMBAHAN KONTEN ---\n\n" : "";
+                          setContent((prev) => prev + separator + res.content);
+                        } catch (err) {
+                          setError("Gagal membaca file");
+                        } finally {
+                          setIsLoading(false);
+                          e.target.value = "";
+                        }
+                      }}
+                      disabled={isLoading}
+                    />
+                    <label
+                      htmlFor="append-file"
+                      className={`text-xs px-3 py-1.5 bg-[var(--surface-hover)] hover:bg-[var(--border)] rounded-lg cursor-pointer transition-colors inline-block ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
+                    >
+                      + Tambah File
+                    </label>
+                  </div>
+
+                  {/* Clear Content Button */}
+                  <button
+                    type="button"
+                    onClick={handleClearContent}
+                    disabled={!content.trim()}
+                    className="flex items-center gap-1 text-xs px-3 py-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg disabled:opacity-50 transition-colors"
+                    title="Hapus semua konten"
+                  >
+                    <Trash2 size={14} />
+                    Hapus
+                  </button>
                 </div>
               </div>
+
+              {/* Content Usage Bar */}
+              <div className="mb-2">
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className={getUsageTextColor()}>
+                    {contentLength.toLocaleString()} / {maxContext.toLocaleString()} karakter
+                  </span>
+                  <span className={getUsageTextColor()}>
+                    {usagePercent.toFixed(0)}%
+                  </span>
+                </div>
+                <div className="h-1.5 bg-[var(--border)] rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all ${getUsageColor()}`}
+                    style={{ width: `${Math.min(usagePercent, 100)}%` }}
+                  />
+                </div>
+                {isOverLimit && (
+                  <div className="flex items-center gap-1 mt-1.5 text-xs text-red-500">
+                    <AlertTriangle size={12} />
+                    <span>Konten melebihi batas! AI hanya akan membaca {maxContext.toLocaleString()} karakter pertama.</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Success Message */}
+              {success && (
+                <div className="mb-2 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                  <p className="text-xs text-green-600 dark:text-green-400">{success}</p>
+                </div>
+              )}
+
+              {/* Textarea */}
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 className="flex-1 w-full p-4 bg-[var(--background)] border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--primary)] outline-none resize-none font-mono text-sm leading-relaxed"
-                placeholder="Content text..."
+                placeholder="Konten material..."
               />
             </div>
+
             {error && <p className="text-red-500 text-sm">{error}</p>}
           </div>
 
+          {/* Footer */}
           <div className="p-6 border-t border-[var(--border)] flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
               className="px-4 py-2 border border-[var(--border)] rounded-lg hover:bg-[var(--surface-hover)]"
             >
-              Cancel
+              Batal
             </button>
             <button
               type="submit"
@@ -133,7 +255,7 @@ export function EditMaterialModal({
               className="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-hover)] disabled:opacity-50"
             >
               {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-              Save Changes
+              Simpan
             </button>
           </div>
         </form>

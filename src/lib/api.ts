@@ -99,6 +99,13 @@ export const authAPI = {
             body: JSON.stringify({ currentPassword, newPassword }),
         });
     },
+
+    testCustomApi: async (apiUrl: string, apiKey: string, model: string) => {
+        return fetchAPI<{ success: boolean; message?: string; error?: string; model?: string; response?: string }>("/api/auth/test-api", {
+            method: "POST",
+            body: JSON.stringify({ apiUrl, apiKey, model }),
+        });
+    },
 };
 
 // Materials API
@@ -137,14 +144,30 @@ export const materialsAPI = {
             body: JSON.stringify(data),
         }),
 
-    parse: async (file: File) => {
+    parse: async (file: File, smartCleanup = false) => {
         const formData = new FormData();
         formData.append("file", file);
+        formData.append("smartCleanup", smartCleanup.toString());
         return fetchAPI<{ success: boolean; content: string }>("/api/materials/parse", {
             method: "POST",
             body: formData,
         });
     },
+
+    appendFile: async (id: string, file: File) => {
+        const formData = new FormData();
+        formData.append("file", file);
+        return fetchAPI<{ success: boolean; material: Material }>(`/api/materials/${id}/append-file`, {
+            method: "POST",
+            body: formData,
+        });
+    },
+
+    appendText: (id: string, text: string) =>
+        fetchAPI<{ success: boolean; material: Material }>(`/api/materials/${id}/append-text`, {
+            method: "POST",
+            body: JSON.stringify({ text }),
+        }),
 
     delete: (id: string) =>
         fetchAPI<{ success: boolean }>(`/api/materials/${id}`, {
@@ -316,6 +339,13 @@ export const aiAPI = {
             method: "POST",
             body: JSON.stringify({ term, model }),
         }),
+
+    // Content cleanup - remove unnecessary parts like TOC, list of figures, etc.
+    cleanupContent: (materialId: string, content: string) =>
+        fetchAPI<{ success: boolean; cleanedContent: string; removedChars: number }>(`/api/ai/${materialId}/cleanup`, {
+            method: "POST",
+            body: JSON.stringify({ content }),
+        }),
 };
 
 // Types
@@ -335,8 +365,11 @@ export interface User {
 export interface AIModel {
     id: string;
     name: string;
-    tier: "flash" | "standard" | "pro" | "thinking" | "premium";
+    tier?: string;
     price: string;
+    description?: string;
+    pros?: string[];
+    cons?: string[];
 }
 
 export interface MaterialSummary {
@@ -406,11 +439,18 @@ export interface QuizAttempt {
     createdAt: string;
 }
 
+export interface ChatMessage {
+    id: string;
+    role: string;
+    content: string;
+    createdAt: string;
+}
+
 export interface MaterialAnalytics {
-    studyTime: {
-        total: number;
-        sessions: number;
-        recentSessions: StudySession[];
+    chatActivity: {
+        totalQuestions: number;
+        lastActivity: string | null;
+        recentMessages: ChatMessage[];
     };
     quizPerformance: {
         totalAttempts: number;
@@ -420,20 +460,18 @@ export interface MaterialAnalytics {
     };
 }
 
+// Learning Evaluation interface
+export interface LearningEvaluation {
+    id: string;
+    content: string;
+    score: number;
+    questionsCount: number;
+    quizAvgScore: number | null;
+    createdAt: string;
+}
+
 // Analytics API
 export const analyticsAPI = {
-    startSession: (materialId: string) =>
-        fetchAPI<{ success: boolean; session: StudySession }>("/api/analytics/session/start", {
-            method: "POST",
-            body: JSON.stringify({ materialId }),
-        }),
-
-    endSession: (sessionId: string) =>
-        fetchAPI<{ success: boolean; session: StudySession }>("/api/analytics/session/end", {
-            method: "POST",
-            body: JSON.stringify({ sessionId }),
-        }),
-
     saveQuizAttempt: (materialId: string, score: number, totalQuestions: number) =>
         fetchAPI<{ success: boolean; attempt: QuizAttempt }>("/api/analytics/quiz-attempt", {
             method: "POST",
@@ -442,4 +480,13 @@ export const analyticsAPI = {
 
     getMaterialAnalytics: (materialId: string) =>
         fetchAPI<{ success: boolean; analytics: MaterialAnalytics }>(`/api/analytics/material/${materialId}`),
+
+    evaluateLearning: (materialId: string) =>
+        fetchAPI<{ success: boolean; evaluation: LearningEvaluation }>(`/api/analytics/evaluate/${materialId}`, {
+            method: "POST",
+        }),
+
+    getEvaluations: (materialId: string) =>
+        fetchAPI<{ success: boolean; evaluations: LearningEvaluation[] }>(`/api/analytics/evaluations/${materialId}`),
 };
+

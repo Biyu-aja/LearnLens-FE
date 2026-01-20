@@ -287,7 +287,7 @@ export function ChatPanel({
             </div>
             <h3 className="text-lg font-medium mb-2">Start a conversation</h3>
             <p className="text-[var(--foreground-muted)] text-sm max-w-sm">
-              Ask questions about your learning material using <strong>{currentModelName}</strong>.
+              Ask questions about your learning material.
             </p>
           </div>
         ) : (

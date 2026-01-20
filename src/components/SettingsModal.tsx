@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Loader2, Settings, Check, Sparkles, Zap, Crown, Brain, Star, Type, FileText, Link, Key, Eye, EyeOff } from "lucide-react";
+import { X, Loader2, Settings, Check, Sparkles, Zap, Crown, Brain, Star, Type, FileText, Link, Key, Eye, EyeOff, Wifi, WifiOff, CheckCircle, XCircle } from "lucide-react";
 import { authAPI, AIModel } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
@@ -39,6 +39,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [showApiKey, setShowApiKey] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -48,7 +50,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setMaxContext(user.maxContext || 8000);
       setCustomApiUrl(user.customApiUrl || "");
       setCustomModel(user.customModel || "");
-      setCustomApiKey("");
+      // Don't reset customApiKey if user already typed something
+      // Only reset if this is a fresh open and there's no pending input
+      
+      // Reset test result when modal opens
+      setTestResult(null);
       
       // Determine API mode based on saved settings
       if (user.customApiUrl || user.hasCustomApiKey || user.customModel) {
@@ -74,6 +80,44 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       ]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    if (!customApiUrl || !customModel) {
+      setTestResult({ success: false, message: "API URL and Model name are required" });
+      return;
+    }
+
+    // Check if we have API key (either new input or saved)
+    if (!customApiKey && !user?.hasCustomApiKey) {
+      setTestResult({ success: false, message: "API Key is required" });
+      return;
+    }
+
+    setIsTesting(true);
+    setTestResult(null);
+
+    try {
+      const response = await authAPI.testCustomApi(customApiUrl, customApiKey, customModel);
+      if (response.success) {
+        setTestResult({ 
+          success: true, 
+          message: `Connected! Model: ${response.model || customModel}` 
+        });
+      } else {
+        setTestResult({ 
+          success: false, 
+          message: response.error || "Connection failed" 
+        });
+      }
+    } catch (err: any) {
+      setTestResult({ 
+        success: false, 
+        message: err.message || "Failed to connect to API" 
+      });
+    } finally {
+      setIsTesting(false);
     }
   };
 
@@ -110,21 +154,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   };
 
   if (!isOpen) return null;
-
-  const groupedModels = models.reduce((acc, model) => {
-    if (!acc[model.tier]) acc[model.tier] = [];
-    acc[model.tier].push(model);
-    return acc;
-  }, {} as Record<string, AIModel[]>);
-
-  const tierOrder = ["flash", "standard", "pro", "thinking", "premium"];
-  const tierLabels: Record<string, string> = {
-    flash: "Flash (Budget)",
-    standard: "Standard",
-    pro: "Pro",
-    thinking: "Thinking",
-    premium: "Premium",
-  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -194,14 +223,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <input
                   type="range"
                   min="2000"
-                  max="20000"
-                  step="1000"
+                  max="100000"
+                  step="2000"
                   value={maxContext}
                   onChange={(e) => setMaxContext(Number(e.target.value))}
                   className="w-full h-2 bg-[var(--border)] rounded-lg appearance-none cursor-pointer accent-[var(--primary)]"
                 />
                 <p className="text-xs text-[var(--foreground-muted)]">
-                  How much of your material content is sent to AI.
+                  How much of your material is sent to AI. Higher = more content but more expensive.
                 </p>
               </div>
 
@@ -244,46 +273,81 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     <label className="text-sm font-medium">AI Model</label>
                   </div>
                   
-                  {tierOrder.map((tier) => {
-                    const tierModels = groupedModels[tier];
-                    if (!tierModels || tierModels.length === 0) return null;
-                    const TierIcon = tierIcons[tier as keyof typeof tierIcons] || Sparkles;
-
-                    return (
-                      <div key={tier}>
-                        <div className="flex items-center gap-2 mb-3 mt-4 first:mt-0">
-                          <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${tierColors[tier as keyof typeof tierColors]}`}>
-                            <TierIcon size={14} />
+                  <div className="space-y-2">
+                    {models.map((model) => (
+                      <div key={model.id}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedModel(model.id)}
+                          className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
+                            selectedModel === model.id
+                              ? "border-[var(--primary)] bg-[var(--primary-light)]"
+                              : "border-[var(--border)] hover:border-[var(--primary)]"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                              <Zap size={16} className="text-white" />
+                            </div>
+                            <div className="text-left">
+                              <p className="font-medium text-sm">{model.name}</p>
+                              <p className="text-xs text-[var(--foreground-muted)]">{model.price}</p>
+                            </div>
                           </div>
-                          <span className="text-sm font-medium">{tierLabels[tier]}</span>
-                        </div>
-                        <div className="space-y-2">
-                          {tierModels.map((model) => (
-                            <button
-                              key={model.id}
-                              type="button"
-                              onClick={() => setSelectedModel(model.id)}
-                              className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
-                                selectedModel === model.id
-                                  ? "border-[var(--primary)] bg-[var(--primary-light)]"
-                                  : "border-[var(--border)] hover:border-[var(--primary)]"
-                              }`}
-                            >
-                              <div className="text-left">
-                                <p className="font-medium text-sm">{model.name}</p>
-                                <p className="text-xs text-[var(--foreground-muted)]">{model.price}</p>
+                          <div className="flex items-center gap-2">
+                            {selectedModel === model.id && (
+                              <div className="w-6 h-6 rounded-full bg-[var(--primary)] flex items-center justify-center">
+                                <Check size={14} className="text-white" />
                               </div>
-                              {selectedModel === model.id && (
-                                <div className="w-6 h-6 rounded-full bg-[var(--primary)] flex items-center justify-center">
-                                  <Check size={14} className="text-white" />
+                            )}
+                          </div>
+                        </button>
+                        
+                        {/* Inline Details - shown when selected */}
+                        {selectedModel === model.id && model.description && (
+                          <div className="mt-2 ml-11 p-3 bg-[var(--background)] rounded-lg border border-[var(--border)] text-sm">
+                            <p className="text-[var(--foreground-muted)] mb-3">{model.description}</p>
+                            
+                            <div className="flex gap-4">
+                              {model.pros && model.pros.length > 0 && (
+                                <div className="flex-1">
+                                  <p className="text-xs font-medium text-green-600 dark:text-green-400 mb-1.5 flex items-center gap-1">
+                                    <span className="w-4 h-4 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-[10px]">✓</span>
+                                    Kelebihan
+                                  </p>
+                                  <ul className="text-xs text-[var(--foreground-muted)] space-y-1">
+                                    {model.pros.map((pro, i) => (
+                                      <li key={i} className="flex items-start gap-1.5">
+                                        <span className="text-green-500 mt-0.5">•</span>
+                                        {pro}
+                                      </li>
+                                    ))}
+                                  </ul>
                                 </div>
                               )}
-                            </button>
-                          ))}
-                        </div>
+                              
+                              {model.cons && model.cons.length > 0 && (
+                                <div className="flex-1">
+                                  <p className="text-xs font-medium text-orange-600 dark:text-orange-400 mb-1.5 flex items-center gap-1">
+                                    <span className="w-4 h-4 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-[10px]">!</span>
+                                    Kekurangan
+                                  </p>
+                                  <ul className="text-xs text-[var(--foreground-muted)] space-y-1">
+                                    {model.cons.map((con, i) => (
+                                      <li key={i} className="flex items-start gap-1.5">
+                                        <span className="text-orange-500 mt-0.5">•</span>
+                                        {con}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <div key="custom-mode" className="space-y-4">
@@ -301,6 +365,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       value={customApiUrl}
                       onChange={(e) => setCustomApiUrl(e.target.value)}
                       placeholder="https://api.openai.com/v1"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
                       className="w-full px-3 py-2.5 bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                     />
                   </div>
@@ -319,15 +386,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         value={customApiKey}
                         onChange={(e) => setCustomApiKey(e.target.value)}
                         placeholder={user?.hasCustomApiKey ? "••••••••••••" : "sk-..."}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
                         className="w-full px-3 py-2.5 pr-10 bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowApiKey(!showApiKey)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
-                      >
-                        {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
                     </div>
                   </div>
 
@@ -353,6 +416,42 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       💡 Your custom API must be OpenAI-compatible.
                     </p>
                   </div>
+
+                  {/* Test Connection Button */}
+                  <button
+                    type="button"
+                    onClick={handleTestConnection}
+                    disabled={isTesting || !customApiUrl || !customModel}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-sm font-medium hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    {isTesting ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Testing Connection...
+                      </>
+                    ) : (
+                      <>
+                        <Wifi size={16} />
+                        Test Connection
+                      </>
+                    )}
+                  </button>
+
+                  {/* Test Result */}
+                  {testResult && (
+                    <div className={`flex items-start gap-2 p-3 rounded-lg text-sm ${
+                      testResult.success 
+                        ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300"
+                        : "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300"
+                    }`}>
+                      {testResult.success ? (
+                        <CheckCircle size={18} className="shrink-0 mt-0.5" />
+                      ) : (
+                        <XCircle size={18} className="shrink-0 mt-0.5" />
+                      )}
+                      <span>{testResult.message}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </>

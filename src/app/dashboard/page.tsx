@@ -40,8 +40,17 @@ export default function DashboardPage() {
     }
   };
 
-  const handleUpload = async (data: { title: string; content?: string; file?: File }) => {
-    await materialsAPI.create(data);
+  const handleUpload = async (data: { title: string; content?: string; file?: File; smartCleanup?: boolean }) => {
+    // If file with smart cleanup, parse first then create with text content
+    if (data.file && data.smartCleanup) {
+      const parsed = await materialsAPI.parse(data.file, true);
+      await materialsAPI.create({ 
+        title: data.title, 
+        content: parsed.content 
+      });
+    } else {
+      await materialsAPI.create(data);
+    }
     await fetchMaterials();
   };
 
