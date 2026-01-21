@@ -79,6 +79,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setModels([
         { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite", tier: "flash", price: "Rp 5.000/1M tokens" },
         { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", tier: "flash", price: "Rp 5.000/1M tokens" },
+
       ]);
     } finally {
       setIsLoading(false);
@@ -356,7 +357,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <p className="text-xs text-[var(--foreground-muted)]">
                     Use your own OpenAI-compatible API endpoint.
                   </p>
-
+                <form autoComplete="off">
                   <div className="space-y-2">
                     <label className="text-xs font-medium flex items-center gap-2">
                       <Link size={12} />
@@ -364,12 +365,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     </label>
                     <input
                       type="url"
+                      name="customApiUrl"
                       value={customApiUrl}
                       onChange={(e) => setCustomApiUrl(e.target.value)}
                       placeholder="https://api.openai.com/v1"
                       autoComplete="off"
-                      autoCorrect="off"
-                      autoCapitalize="off"
                       className="w-full px-3 py-2.5 bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                     />
                   </div>
@@ -385,12 +385,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     <div className="relative">
                       <input
                         type={showApiKey ? "text" : "password"}
+                        name="customApiKey"
                         value={customApiKey}
                         onChange={(e) => setCustomApiKey(e.target.value)}
-                        placeholder={user?.hasCustomApiKey ? "••••••••••••" : "sk-..."}
-                        autoComplete="off"
-                        autoCorrect="off"
-                        autoCapitalize="off"
+                        placeholder="API Key Password"
+                        autoComplete="new-password"
                         className="w-full px-3 py-2.5 pr-10 bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                       />
                     </div>
@@ -403,6 +402,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     </label>
                     <input
                       type="text"
+                      name="customModel"
                       value={customModel}
                       onChange={(e) => setCustomModel(e.target.value)}
                       placeholder="e.g., gpt-4o, claude-sonnet-4"
@@ -412,6 +412,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       The exact model name to request from your API provider.
                     </p>
                   </div>
+                </form>
 
                   <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                     <p className="text-xs text-blue-700 dark:text-blue-300">

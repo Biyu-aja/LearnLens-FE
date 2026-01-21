@@ -473,12 +473,6 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
   };
 
   const handleGenerateFlashcards = async () => {
-    // If already has flashcards, just switch to tab
-    if (flashcards && flashcards.length > 0) {
-      setActiveTab("flashcards");
-      return;
-    }
-    
     setIsFlashcardsLoading(true);
     try {
       const response = await aiAPI.generateFlashcards(id, 10, aiLanguage);

@@ -74,17 +74,17 @@ export function EditMaterialModal({
     try {
       const response = await aiAPI.cleanupContent(materialId, content);
       setContent(response.cleanedContent);
-      setSuccess(`Berhasil menghapus ${response.removedChars.toLocaleString()} karakter tidak penting!`);
+      setSuccess(`Successfully removed ${response.removedChars.toLocaleString()} unnecessary characters!`);
       setTimeout(() => setSuccess(""), 5000);
     } catch (err: any) {
-      setError(err.message || "Gagal membersihkan konten");
+      setError(err.message || "Failed to clean up content");
     } finally {
       setIsCleaning(false);
     }
   };
 
   const handleClearContent = () => {
-    if (confirm("Yakin ingin menghapus semua konten? Aksi ini tidak bisa dibatalkan.")) {
+    if (confirm("Are you sure you want to delete all content? This action cannot be undone.")) {
       setContent("");
     }
   };
@@ -119,7 +119,7 @@ export function EditMaterialModal({
           <div className="p-6 flex-1 flex flex-col gap-4 overflow-y-auto">
             {/* Title */}
             <div>
-              <label className="block text-sm font-medium mb-1.5">Judul</label>
+              <label className="block text-sm font-medium mb-1.5">Title</label>
               <input
                 type="text"
                 value={title}
@@ -132,7 +132,7 @@ export function EditMaterialModal({
             <div className="flex-1 flex flex-col min-h-[300px]">
               {/* Header with actions */}
               <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                <label className="block text-sm font-medium">Konten</label>
+                <label className="block text-sm font-medium">Content</label>
                 <div className="flex items-center gap-2">
                   {/* AI Cleanup Button */}
                   <button
@@ -140,14 +140,14 @@ export function EditMaterialModal({
                     onClick={handleAICleanup}
                     disabled={isCleaning || !content.trim()}
                     className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:opacity-90 disabled:opacity-50 transition-all"
-                    title="AI akan menghapus bagian tidak penting seperti daftar isi, daftar gambar, halaman kosong, dll"
+                    title="AI will remove unnecessary parts like table of contents, list of figures, empty pages, etc."
                   >
                     {isCleaning ? (
                       <Loader2 size={14} className="animate-spin" />
                     ) : (
                       <Sparkles size={14} />
                     )}
-                    {isCleaning ? "Membersihkan..." : "AI Cleanup"}
+                    {isCleaning ? "Cleaning..." : "AI Cleanup"}
                   </button>
 
                   {/* Add File Button */}
@@ -164,10 +164,10 @@ export function EditMaterialModal({
                         try {
                           setIsLoading(true);
                           const res = await materialsAPI.parse(file);
-                          const separator = content ? "\n\n--- TAMBAHAN KONTEN ---\n\n" : "";
+                          const separator = content ? "\n\n--- ADDITIONAL CONTENT ---\n\n" : "";
                           setContent((prev) => prev + separator + res.content);
                         } catch (err) {
-                          setError("Gagal membaca file");
+                          setError("Failed to read file");
                         } finally {
                           setIsLoading(false);
                           e.target.value = "";
@@ -179,7 +179,7 @@ export function EditMaterialModal({
                       htmlFor="append-file"
                       className={`text-xs px-3 py-1.5 bg-[var(--surface-hover)] hover:bg-[var(--border)] rounded-lg cursor-pointer transition-colors inline-block ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
                     >
-                      + Tambah File
+                      + Add File
                     </label>
                   </div>
 
@@ -189,10 +189,10 @@ export function EditMaterialModal({
                     onClick={handleClearContent}
                     disabled={!content.trim()}
                     className="flex items-center gap-1 text-xs px-3 py-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg disabled:opacity-50 transition-colors"
-                    title="Hapus semua konten"
+                    title="Delete all content"
                   >
                     <Trash2 size={14} />
-                    Hapus
+                    Delete
                   </button>
                 </div>
               </div>
@@ -201,7 +201,7 @@ export function EditMaterialModal({
               <div className="mb-2">
                 <div className="flex items-center justify-between text-xs mb-1">
                   <span className={getUsageTextColor()}>
-                    {contentLength.toLocaleString()} / {maxContext.toLocaleString()} karakter
+                    {contentLength.toLocaleString()} / {maxContext.toLocaleString()} characters
                   </span>
                   <span className={getUsageTextColor()}>
                     {usagePercent.toFixed(0)}%
@@ -216,7 +216,7 @@ export function EditMaterialModal({
                 {isOverLimit && (
                   <div className="flex items-center gap-1 mt-1.5 text-xs text-red-500">
                     <AlertTriangle size={12} />
-                    <span>Konten melebihi batas! AI hanya akan membaca {maxContext.toLocaleString()} karakter pertama.</span>
+                    <span>Content exceeds limit! AI will only read the first {maxContext.toLocaleString()} characters.</span>
                   </div>
                 )}
               </div>
@@ -233,7 +233,7 @@ export function EditMaterialModal({
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 className="flex-1 w-full p-4 bg-[var(--background)] border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--primary)] outline-none resize-none font-mono text-sm leading-relaxed"
-                placeholder="Konten material..."
+                placeholder="Material content..."
               />
             </div>
 
@@ -247,7 +247,7 @@ export function EditMaterialModal({
               onClick={onClose}
               className="px-4 py-2 border border-[var(--border)] rounded-lg hover:bg-[var(--surface-hover)]"
             >
-              Batal
+              Cancel
             </button>
             <button
               type="submit"
@@ -255,7 +255,7 @@ export function EditMaterialModal({
               className="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-hover)] disabled:opacity-50"
             >
               {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-              Simpan
+              Save
             </button>
           </div>
         </form>

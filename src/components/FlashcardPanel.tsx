@@ -134,57 +134,45 @@ export function FlashcardPanel({
           />
         </div>
 
-        {/* Flashcard */}
+        {/* Flashcard - Auto height based on content */}
         <div 
-          className="relative cursor-pointer perspective-1000"
+          className="cursor-pointer"
           onClick={handleFlip}
-          style={{ minHeight: "280px" }}
         >
-          <div 
-            className={`w-full transition-transform duration-500 transform-style-3d ${
-              isFlipped ? "rotate-y-180" : ""
-            }`}
-            style={{ 
-              transformStyle: "preserve-3d",
-              transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)"
-            }}
-          >
-            {/* Front */}
-            <div 
-              className="absolute inset-0 backface-hidden rounded-2xl p-8 bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-xl flex flex-col items-center justify-center text-center"
-              style={{ backfaceVisibility: "hidden" }}
-            >
-              <div className="text-xs uppercase tracking-wider mb-4 opacity-75">Question</div>
-              <p className="text-xl font-medium leading-relaxed">
-                {flashcards[currentIndex]?.front}
-              </p>
-              {flashcards[currentIndex]?.category && (
-                <span className="mt-4 px-3 py-1 bg-white/20 rounded-full text-sm">
-                  {flashcards[currentIndex].category}
-                </span>
-              )}
-              <div className="absolute bottom-4 text-sm opacity-60">
-                Click to flip
+          {!isFlipped ? (
+            /* Front - Question */
+            <div className="rounded-2xl p-6 bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-xl min-h-[200px] flex flex-col">
+              <div className="text-xs uppercase tracking-wider opacity-75 text-center">Question</div>
+              <div className="flex-1 flex items-center justify-center py-6">
+                <p className="text-lg font-medium leading-relaxed text-center">
+                  {flashcards[currentIndex]?.front}
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                {flashcards[currentIndex]?.category && (
+                  <span className="px-3 py-1 bg-white/20 rounded-full text-sm">
+                    {flashcards[currentIndex].category}
+                  </span>
+                )}
+              </div>
+              <div className="text-xs opacity-60 text-center mt-4">
+                Click to reveal answer
               </div>
             </div>
-
-            {/* Back */}
-            <div 
-              className="absolute inset-0 backface-hidden rounded-2xl p-8 bg-[var(--surface)] border-2 border-cyan-500/30 shadow-xl flex flex-col items-center justify-center text-center"
-              style={{ 
-                backfaceVisibility: "hidden",
-                transform: "rotateY(180deg)"
-              }}
-            >
-              <div className="text-xs uppercase tracking-wider mb-4 text-cyan-500">Answer</div>
-              <p className="text-lg text-[var(--foreground)] leading-relaxed">
-                {flashcards[currentIndex]?.back}
-              </p>
-              <div className="absolute bottom-4 text-sm text-[var(--foreground-muted)]">
-                Click to flip back
+          ) : (
+            /* Back - Answer */
+            <div className="rounded-2xl p-6 bg-[var(--surface)] border-2 border-cyan-500/30 shadow-xl min-h-[200px] flex flex-col">
+              <div className="text-xs uppercase tracking-wider text-cyan-500 text-center">Answer</div>
+              <div className="flex-1 flex items-center justify-center py-6">
+                <p className="text-base text-[var(--foreground)] leading-relaxed text-center">
+                  {flashcards[currentIndex]?.back}
+                </p>
+              </div>
+              <div className="text-xs text-[var(--foreground-muted)] text-center mt-4">
+                Click to see question
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Navigation */}
@@ -238,19 +226,28 @@ export function FlashcardPanel({
           Use ← → arrow keys to navigate, Space to flip
         </p>
 
-        {/* Generate new */}
-        <div className="pt-4 border-t border-[var(--border)]">
+        {/* Regenerate option */}
+        <div className="pt-4 border-t border-[var(--border)] flex justify-center">
           <button
             onClick={onGenerateFlashcards}
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 text-cyan-600 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-800 rounded-xl hover:bg-cyan-50 dark:hover:bg-cyan-900/20 transition-colors"
+            className={`flex items-center gap-2 px-5 py-2.5 text-sm border rounded-xl transition-colors ${
+              isLoading 
+                ? "text-cyan-400 border-cyan-400 bg-cyan-50 dark:bg-cyan-900/30 cursor-wait"
+                : "text-cyan-600 dark:text-cyan-400 border-cyan-200 dark:border-cyan-800 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+            }`}
           >
             {isLoading ? (
-              <Loader2 size={18} className="animate-spin" />
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Generating new flashcards...
+              </>
             ) : (
-              <Sparkles size={18} />
+              <>
+                <Sparkles size={16} />
+                Regenerate Flashcards
+              </>
             )}
-            Regenerate Flashcards
           </button>
         </div>
       </div>

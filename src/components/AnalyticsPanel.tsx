@@ -59,7 +59,7 @@ export function AnalyticsPanel({ materialId }: AnalyticsPanelProps) {
       setSelectedEvaluation(response.evaluation);
       setEvaluations(prev => [response.evaluation, ...prev]);
     } catch (err: any) {
-      setEvalError(err.message || "Gagal membuat evaluasi");
+      setEvalError(err.message || "Failed to generate evaluation");
     } finally {
       setIsEvaluating(false);
     }
@@ -108,7 +108,7 @@ export function AnalyticsPanel({ materialId }: AnalyticsPanelProps) {
   const formatDate = (dateString: string | null): string => {
     if (!dateString) return "Never";
     const date = new Date(dateString);
-    return date.toLocaleDateString("id-ID", {
+    return date.toLocaleDateString("en-US", {
       day: "numeric",
       month: "short",
       hour: "2-digit",
@@ -126,9 +126,9 @@ export function AnalyticsPanel({ materialId }: AnalyticsPanelProps) {
     const diffDays = Math.floor(diffMs / 86400000);
 
     if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins} menit lalu`;
-    if (diffHours < 24) return `${diffHours} jam lalu`;
-    if (diffDays < 7) return `${diffDays} hari lalu`;
+    if (diffMins < 60) return `${diffMins} mins ago`;
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffDays < 7) return `${diffDays} days ago`;
     return formatDate(dateString);
   };
 
@@ -180,8 +180,8 @@ export function AnalyticsPanel({ materialId }: AnalyticsPanelProps) {
                   <h3 className="font-semibold text-[var(--foreground)]">AI Learning Evaluation</h3>
                   <p className="text-xs text-[var(--foreground-muted)]">
                     {evaluations.length > 0 
-                      ? `${evaluations.length} evaluasi tersimpan` 
-                      : "Minta AI menganalisis progress belajarmu"}
+                      ? `${evaluations.length} evaluations saved` 
+                      : "Ask AI to analyze your learning progress"}
                   </p>
                 </div>
               </div>
@@ -204,12 +204,12 @@ export function AnalyticsPanel({ materialId }: AnalyticsPanelProps) {
                   {isEvaluating ? (
                     <>
                       <Loader2 size={16} className="animate-spin" />
-                      Menganalisis...
+                      Analyzing...
                     </>
                   ) : (
                     <>
                       <Sparkles size={16} />
-                      {evaluations.length > 0 ? "Evaluasi Ulang" : "Evaluasi"}
+                      {evaluations.length > 0 ? "Re-evaluate" : "Evaluate"}
                     </>
                   )}
                 </button>
@@ -219,7 +219,7 @@ export function AnalyticsPanel({ materialId }: AnalyticsPanelProps) {
             {/* Evaluation History */}
             {showHistory && evaluations.length > 0 && (
               <div className="mt-4 pt-4 border-t border-purple-500/20">
-                <p className="text-xs text-[var(--foreground-muted)] mb-2">Pilih evaluasi sebelumnya:</p>
+                <p className="text-xs text-[var(--foreground-muted)] mb-2">Select previous evaluation:</p>
                 <div className="flex flex-wrap gap-2">
                   {evaluations.map((ev, idx) => (
                     <button
@@ -233,7 +233,7 @@ export function AnalyticsPanel({ materialId }: AnalyticsPanelProps) {
                     >
                       <span className="font-bold">{ev.score}/10</span>
                       <span className="ml-2 opacity-70">{formatDate(ev.createdAt)}</span>
-                      {idx === 0 && <span className="ml-1 text-[10px]">(terbaru)</span>}
+                      {idx === 0 && <span className="ml-1 text-[10px]">(latest)</span>}
                     </button>
                   ))}
                 </div>
@@ -254,7 +254,7 @@ export function AnalyticsPanel({ materialId }: AnalyticsPanelProps) {
             <div className="flex items-center justify-between mb-4 pr-8">
               <div className="flex items-center gap-2">
                 <Sparkles size={20} className="text-purple-500" />
-                <h3 className="font-semibold text-[var(--foreground)]">Hasil Evaluasi AI</h3>
+                <h3 className="font-semibold text-[var(--foreground)]">AI Evaluation Result</h3>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs text-[var(--foreground-muted)]">
@@ -266,7 +266,7 @@ export function AnalyticsPanel({ materialId }: AnalyticsPanelProps) {
               </div>
             </div>
             <div className="text-xs text-[var(--foreground-muted)] mb-4 flex gap-4">
-              <span>📝 {selectedEvaluation.questionsCount} pertanyaan</span>
+              <span>📝 {selectedEvaluation.questionsCount} questions</span>
               {selectedEvaluation.quizAvgScore !== null && (
                 <span>🎯 Quiz avg: {selectedEvaluation.quizAvgScore.toFixed(1)}%</span>
               )}

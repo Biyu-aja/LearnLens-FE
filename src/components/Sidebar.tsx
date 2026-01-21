@@ -60,13 +60,6 @@ export function Sidebar({ materials, onNewMaterial }: SidebarProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const languages = [
-    { id: "id" as Language, label: "Bahasa Indonesia", flag: "🇮🇩", short: "ID" },
-    { id: "en" as Language, label: "English", flag: "🇺🇸", short: "EN" },
-  ];
-
-  const currentLanguage = languages.find(l => l.id === settings.language) || languages[0];
-
   return (
     <>
       {/* Mobile menu button */}
@@ -103,43 +96,6 @@ export function Sidebar({ materials, onNewMaterial }: SidebarProps) {
                 <p className="text-xs text-[var(--sidebar-text-muted)]">AI Tutoring</p>
               </div>
             </Link>
-
-            {/* Language Selector */}
-            <div className="relative" ref={languageMenuRef}>
-              <button
-                onClick={() => setShowLanguageMenu(!showLanguageMenu)}
-                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-[var(--sidebar-hover)] transition-colors text-[var(--sidebar-text-muted)] hover:text-[var(--sidebar-text)]"
-                title="Change Language"
-              >
-                <Globe size={16} />
-                <span className="text-xs font-medium">{currentLanguage.short}</span>
-              </button>
-
-              {/* Language Dropdown */}
-              {showLanguageMenu && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-[var(--surface)] rounded-xl shadow-xl border border-[var(--border)] overflow-hidden z-50">
-                  <div className="py-1">
-                    {languages.map((lang) => (
-                      <button
-                        key={lang.id}
-                        onClick={() => handleLanguageChange(lang.id)}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-[var(--surface-hover)] transition-colors ${
-                          settings.language === lang.id 
-                            ? "text-[var(--primary)] bg-[var(--primary-light)]" 
-                            : "text-[var(--foreground)]"
-                        }`}
-                      >
-                        <span className="text-lg">{lang.flag}</span>
-                        <span className="text-sm font-medium">{lang.label}</span>
-                        {settings.language === lang.id && (
-                          <span className="ml-auto text-[var(--primary)]">✓</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
 

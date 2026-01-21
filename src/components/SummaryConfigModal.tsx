@@ -20,20 +20,6 @@ export interface SummaryConfig {
 // Prompt templates for summary
 const PROMPT_TEMPLATES = [
   {
-    id: "indonesian",
-    label: "Bahasa Indonesia",
-    icon: Languages,
-    prompt: "Generate the summary in Indonesian language (Bahasa Indonesia).",
-    color: "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30",
-  },
-  {
-    id: "english",
-    label: "English",
-    icon: Languages,
-    prompt: "Generate the summary in English.",
-    color: "text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30",
-  },
-  {
     id: "bullet",
     label: "Bullet Points",
     icon: ListOrdered,
@@ -54,6 +40,13 @@ const PROMPT_TEMPLATES = [
     prompt: "Create a brief and concise summary focusing only on the key points.",
     color: "text-teal-600 dark:text-teal-400 bg-teal-100 dark:bg-teal-900/30",
   },
+];
+
+// Main 3 AI models
+const MAIN_MODELS = [
+  { id: "gemini-2.5-flash-lite", name: "Flash Lite", desc: "Fast & budget-friendly" },
+  { id: "gemini-2.5-flash", name: "Flash", desc: "Balanced performance" },
+  { id: "gemini-2.5-flash-thinking", name: "Flash Thinking", desc: "Best reasoning" },
 ];
 
 export function SummaryConfigModal({
@@ -120,22 +113,6 @@ export function SummaryConfigModal({
 
   if (!isOpen) return null;
 
-  // Group models by tier
-  const groupedModels = models.reduce((acc, model) => {
-    if (!acc[model.tier]) acc[model.tier] = [];
-    acc[model.tier].push(model);
-    return acc;
-  }, {} as Record<string, AIModel[]>);
-
-  const tierOrder = ["flash", "standard", "pro", "thinking", "premium"];
-  const tierLabels: Record<string, string> = {
-    flash: "Flash (Budget)",
-    standard: "Standard",
-    pro: "Pro",
-    thinking: "Thinking",
-    premium: "Premium",
-  };
-
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div
@@ -172,41 +149,26 @@ export function SummaryConfigModal({
             </div>
           ) : (
             <>
-              {/* AI Model Selection */}
+              {/* AI Model */}
               <div>
                 <label className="block text-sm font-medium mb-2">AI Model</label>
-                <div className="bg-[var(--background)] border border-[var(--border)] rounded-xl p-3 max-h-40 overflow-y-auto space-y-2">
-                  {tierOrder.map((tier) => {
-                    const tierModels = groupedModels[tier];
-                    if (!tierModels || tierModels.length === 0) return null;
-                    return (
-                      <div key={tier}>
-                        <div className="text-xs font-medium text-[var(--foreground-muted)] mb-1 flex items-center gap-1">
-                          <Sparkles size={10} />
-                          {tierLabels[tier]}
-                        </div>
-                        <div className="space-y-1">
-                          {tierModels.map((model) => (
-                            <button
-                              key={model.id}
-                              onClick={() => setSelectedModel(model.id)}
-                              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors ${
-                                selectedModel === model.id
-                                  ? "bg-[var(--primary-light)] text-[var(--primary)]"
-                                  : "hover:bg-[var(--surface-hover)]"
-                              }`}
-                            >
-                              <div>
-                                <span className="font-medium">{model.name}</span>
-                                <span className="text-[var(--foreground-muted)] ml-2">{model.price}</span>
-                              </div>
-                              {selectedModel === model.id && <Check size={14} />}
-                            </button>
-                          ))}
-                        </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {MAIN_MODELS.map((model) => (
+                    <button
+                      key={model.id}
+                      onClick={() => setSelectedModel(model.id)}
+                      className={`p-3 rounded-xl text-center transition-all ${
+                        selectedModel === model.id
+                          ? "bg-[var(--primary)] text-white"
+                          : "bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)]"
+                      }`}
+                    >
+                      <div className="font-medium text-sm">{model.name}</div>
+                      <div className={`text-xs mt-0.5 ${selectedModel === model.id ? "text-white/80" : "text-[var(--foreground-muted)]"}`}>
+                        {model.desc}
                       </div>
-                    );
-                  })}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -241,11 +203,10 @@ export function SummaryConfigModal({
                 <textarea
                   value={customPrompt}
                   onChange={(e) => setCustomPrompt(e.target.value)}
-                  placeholder="Tulis instruksi untuk summary, contoh:
-• Gunakan bahasa Indonesia
-• Fokus pada konsep utama
-• Buat dalam format bullet points
-• Sertakan contoh-contoh penting"
+                  placeholder="Write instructions for the summary, e.g.:
+• Focus on main concepts
+• Use bullet point format
+• Include important examples"
                   className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm"
                   rows={4}
                 />

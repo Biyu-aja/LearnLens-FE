@@ -108,7 +108,7 @@ export function MaterialUpload({ isOpen, onClose, onUpload }: MaterialUploadProp
       <div className="relative w-full max-w-lg mx-4 bg-[var(--surface)] rounded-2xl shadow-2xl fade-in">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
-          <h2 className="text-xl font-semibold">Tambah Materi Pembelajaran</h2>
+          <h2 className="text-xl font-semibold">Add Learning Material</h2>
           <button
             onClick={resetForm}
             className="p-2 hover:bg-[var(--surface-hover)] rounded-lg transition-colors"
@@ -121,12 +121,12 @@ export function MaterialUpload({ isOpen, onClose, onUpload }: MaterialUploadProp
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium mb-2">Judul</label>
+            <label className="block text-sm font-medium mb-2">Title</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Masukkan judul materi"
+              placeholder="Enter material title"
               className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all"
             />
           </div>
@@ -155,7 +155,7 @@ export function MaterialUpload({ isOpen, onClose, onUpload }: MaterialUploadProp
               }`}
             >
               <FileText size={16} />
-              Ketik Teks
+              Enter Text
             </button>
           </div>
 
@@ -186,9 +186,9 @@ export function MaterialUpload({ isOpen, onClose, onUpload }: MaterialUploadProp
                 ) : (
                   <>
                     <Upload size={32} className="mx-auto text-[var(--foreground-muted)] mb-3" />
-                    <p className="font-medium">Klik untuk upload</p>
+                    <p className="font-medium">Click to upload</p>
                     <p className="text-sm text-[var(--foreground-muted)] mt-1">
-                      PDF, Word (.docx), atau TXT maksimal 10MB
+                      PDF, Word (.docx), or TXT up to 10MB
                     </p>
                   </>
                 )}
@@ -203,7 +203,7 @@ export function MaterialUpload({ isOpen, onClose, onUpload }: MaterialUploadProp
                   <div>
                     <p className="text-sm font-medium text-[var(--foreground)]">AI Smart Cleanup</p>
                     <p className="text-xs text-[var(--foreground-muted)]">
-                      Hapus daftar isi, halaman kosong, dll
+                      Remove table of contents, empty pages, etc.
                     </p>
                   </div>
                 </div>
@@ -229,8 +229,8 @@ export function MaterialUpload({ isOpen, onClose, onUpload }: MaterialUploadProp
                 <div className="flex items-start gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                   <Info size={14} className="text-blue-500 mt-0.5 shrink-0" />
                   <p className="text-xs text-blue-600 dark:text-blue-400">
-                    AI akan membersihkan: Daftar Isi, Daftar Gambar, Cover, Halaman Kosong, 
-                    Header/Footer berulang, dan bagian tidak penting lainnya.
+                    AI will clean up: Table of Contents, List of Figures, Cover, Empty Pages, 
+                    Repeated Headers/Footers, and other unnecessary parts.
                   </p>
                 </div>
               )}
@@ -243,7 +243,7 @@ export function MaterialUpload({ isOpen, onClose, onUpload }: MaterialUploadProp
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="Ketik atau paste materi pembelajaran di sini..."
+                placeholder="Type or paste learning material here..."
                 rows={8}
                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all"
               />
@@ -264,7 +264,7 @@ export function MaterialUpload({ isOpen, onClose, onUpload }: MaterialUploadProp
               onClick={resetForm}
               className="flex-1 px-4 py-3 border border-[var(--border)] rounded-xl hover:bg-[var(--surface-hover)] transition-colors font-medium"
             >
-              Batal
+              Cancel
             </button>
             <button
               type="submit"
@@ -277,7 +277,7 @@ export function MaterialUpload({ isOpen, onClose, onUpload }: MaterialUploadProp
                   {smartCleanup && mode === "file" ? "AI Processing..." : "Uploading..."}
                 </>
               ) : (
-                "Tambah Materi"
+                "Add Material"
               )}
             </button>
           </div>
