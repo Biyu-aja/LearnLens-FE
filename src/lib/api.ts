@@ -116,7 +116,13 @@ export const materialsAPI = {
     get: (id: string) =>
         fetchAPI<{ success: boolean; material: Material }>(`/api/materials/${id}`),
 
-    create: async (data: { title: string; content?: string; file?: File }) => {
+    create: async (data: {
+        title: string;
+        content?: string;
+        file?: File;
+        description?: string;
+        type?: string;
+    }) => {
         const formData = new FormData();
         formData.append("title", data.title);
 
@@ -124,6 +130,14 @@ export const materialsAPI = {
             formData.append("file", data.file);
         } else if (data.content) {
             formData.append("content", data.content);
+        }
+
+        if (data.description) {
+            formData.append("description", data.description);
+        }
+
+        if (data.type) {
+            formData.append("type", data.type);
         }
 
         return fetchAPI<{ success: boolean; material: Material }>("/api/materials", {
@@ -376,6 +390,8 @@ export interface User {
     maxContext?: number;
     customApiUrl?: string;
     customModel?: string;
+    customMaxTokens?: number;
+    customMaxContext?: number;
     hasCustomApiKey?: boolean;
 }
 
@@ -513,3 +529,137 @@ export const analyticsAPI = {
         fetchAPI<{ success: boolean; evaluations: LearningEvaluation[] }>(`/api/analytics/evaluations/${materialId}`),
 };
 
+// Chat Sessions Types
+export interface ChatSessionMaterial {
+    id: string;
+    title: string;
+    type: string;
+}
+
+export interface ChatSessionMessage {
+    id: string;
+    role: "user" | "assistant";
+    content: string;
+    createdAt: string;
+}
+
+export interface ChatSession {
+    id: string;
+    title: string;
+    createdAt: string;
+    updatedAt: string;
+    materials: ChatSessionMaterial[];
+    messageCount: number;
+}
+
+export interface ChatSessionDetail extends ChatSession {
+    messages: ChatSessionMessage[];
+}
+
+// Chat Sessions API
+export const chatSessionsAPI = {
+    list: () =>
+        fetchAPI<{ success: boolean; chatSessions: ChatSession[] }>("/api/chat-sessions"),
+
+    get: (id: string) =>
+        fetchAPI<{ success: boolean; chatSession: ChatSessionDetail }>(`/api/chat-sessions/${id}`),
+
+    create: (materialIds: string[], title?: string) =>
+        fetchAPI<{ success: boolean; chatSession: ChatSession }>("/api/chat-sessions", {
+            method: "POST",
+            body: JSON.stringify({ materialIds, title }),
+        }),
+
+    delete: (id: string) =>
+        fetchAPI<{ success: boolean }>(`/api/chat-sessions/${id}`, {
+            method: "DELETE",
+        }),
+
+    clearMessages: (id: string) =>
+        fetchAPI<{ success: boolean }>(`/api/chat-sessions/${id}/messages`, {
+            method: "DELETE",
+        }),
+
+    sendMessageStream: async (
+        sessionId: string,
+        message: string,
+        onChunk: (chunk: string) => void,
+        onUserMessage?: (message: ChatSessionMessage) => void,
+        onComplete?: (message: ChatSessionMessage) => void,
+        onError?: (error: string) => void,
+        signal?: AbortSignal,
+        language: string = "en"
+    ) => {
+        const token = localStorage.getItem("learnlens_token");
+
+        try {
+            const response = await fetch(`${API_URL}/api/chat-sessions/${sessionId}/stream`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token && { Authorization: `Bearer ${token}` }),
+                },
+                body: JSON.stringify({ message, language }),
+                signal,
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to send message");
+            }
+
+            const reader = response.body?.getReader();
+            if (!reader) {
+                throw new Error("No response body");
+            }
+
+            const decoder = new TextDecoder();
+
+            try {
+                while (true) {
+                    if (signal?.aborted) {
+                        reader.cancel();
+                        break;
+                    }
+
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const text = decoder.decode(value);
+                    const lines = text.split("\n\n");
+
+                    for (const line of lines) {
+                        if (line.startsWith("data: ")) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+
+                                if (data.type === "user_message" && onUserMessage) {
+                                    onUserMessage(data.message);
+                                } else if (data.type === "chunk") {
+                                    onChunk(data.content);
+                                } else if (data.type === "done" && onComplete) {
+                                    onComplete(data.message);
+                                } else if (data.type === "error" && onError) {
+                                    onError(data.error);
+                                }
+                            } catch {
+                                // Skip invalid JSON
+                            }
+                        }
+                    }
+                }
+            } finally {
+                reader.releaseLock();
+            }
+        } catch (error: any) {
+            if (error.name === 'AbortError') {
+                console.log("Stream aborted by user");
+                return;
+            }
+            console.error("Stream error:", error);
+            if (onError) {
+                onError("Failed to connect to AI service");
+            }
+            throw error;
+        }
+    },
+};

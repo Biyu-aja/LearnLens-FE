@@ -40,16 +40,50 @@ export default function DashboardPage() {
     }
   };
 
-  const handleUpload = async (data: { title: string; content?: string; file?: File; smartCleanup?: boolean }) => {
-    // If file with smart cleanup, parse first then create with text content
-    if (data.file && data.smartCleanup) {
-      const parsed = await materialsAPI.parse(data.file, true);
+  const handleUpload = async (data: { 
+    title: string; 
+    content?: string; 
+    files?: File[]; 
+    description?: string;
+    type: "file" | "text" | "research";
+    smartCleanup?: boolean 
+  }) => {
+    // Research mode - create and redirect to chat
+    if (data.type === "research") {
+      const response = await materialsAPI.create({
+        title: data.title,
+        type: "research"
+      });
+      // Redirect to the new research session
+      router.push(`/material/${response.material.id}`);
+      return;
+    }
+    // File mode - parse and combine multiple files
+    else if (data.files && data.files.length > 0) {
+      let combinedContent = "";
+      
+      for (const file of data.files) {
+        const parsed = await materialsAPI.parse(file, data.smartCleanup || false);
+        // Add separator between files if more than one
+        if (combinedContent && parsed.content) {
+          combinedContent += `\n\n--- ${file.name} ---\n\n`;
+        }
+        combinedContent += parsed.content;
+      }
+      
       await materialsAPI.create({ 
         title: data.title, 
-        content: parsed.content 
+        content: combinedContent,
+        type: "pdf"
       });
-    } else {
-      await materialsAPI.create(data);
+    } 
+    // Text mode - direct content
+    else if (data.content) {
+      await materialsAPI.create({
+        title: data.title,
+        content: data.content,
+        type: "text"
+      });
     }
     await fetchMaterials();
   };
@@ -66,7 +100,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-[var(--background)]">
       <Sidebar 
         materials={materials} 
-        onNewMaterial={() => setShowUpload(true)} 
+        onNewMaterial={() => setShowUpload(true)}
       />
 
       {/* Main content */}

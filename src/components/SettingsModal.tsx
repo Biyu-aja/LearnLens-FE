@@ -32,8 +32,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { user, updateUser } = useAuth();
   const [models, setModels] = useState<AIModel[]>([]);
   const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash-lite");
+  
+  // Default API (HaluAI Gateway) settings
   const [maxTokens, setMaxTokens] = useState(1000);
   const [maxContext, setMaxContext] = useState(8000);
+  
+  // Custom API settings
+  const [customMaxTokens, setCustomMaxTokens] = useState(1000);
+  const [customMaxContext, setCustomMaxContext] = useState(8000);
+  
   const [apiMode, setApiMode] = useState<"default" | "custom">("default");
   const [customApiUrl, setCustomApiUrl] = useState("");
   const [customApiKey, setCustomApiKey] = useState("");
@@ -48,8 +55,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   useEffect(() => {
     if (isOpen && user) {
       setSelectedModel(user.preferredModel || "gemini-2.5-flash-lite");
+      
+      // Initialize default API settings
       setMaxTokens(user.maxTokens || 1000);
       setMaxContext(user.maxContext || 8000);
+      
+      // Initialize custom API settings
+      setCustomMaxTokens(user.customMaxTokens || 1000);
+      setCustomMaxContext(user.customMaxContext || 8000);
       setCustomApiUrl(user.customApiUrl || "");
       setCustomModel(user.customModel || "");
       // Don't reset customApiKey if user already typed something
@@ -131,17 +144,22 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     try {
       const updateData: Record<string, unknown> = {
         preferredModel: selectedModel,
-        maxTokens: maxTokens,
-        maxContext: maxContext,
       };
 
       if (apiMode === "custom") {
+        // Save custom API settings
         updateData.customApiUrl = customApiUrl || "";
         if (customApiKey) {
           updateData.customApiKey = customApiKey;
         }
         updateData.customModel = customModel || "";
+        updateData.customMaxTokens = customMaxTokens;
+        updateData.customMaxContext = customMaxContext;
       } else {
+        // Save default API settings
+        updateData.maxTokens = maxTokens;
+        updateData.maxContext = 1000000; // Always set to 1M for HaluAI Gateway
+        // Clear custom API settings when switching to default
         updateData.customApiUrl = "";
         updateData.customModel = "";
       }
@@ -187,56 +205,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             </div>
           ) : (
             <>
-              {/* Max Output Length */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Type size={16} className="text-[var(--foreground-muted)]" />
-                    <label className="text-sm font-medium">Max Output Length</label>
-                  </div>
-                  <span className="text-sm font-mono bg-[var(--surface-hover)] px-2 py-1 rounded">
-                    {maxTokens} tokens
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="100"
-                  max="4000"
-                  step="100"
-                  value={maxTokens}
-                  onChange={(e) => setMaxTokens(Number(e.target.value))}
-                  className="w-full h-2 bg-[var(--border)] rounded-lg appearance-none cursor-pointer accent-[var(--primary)]"
-                />
-                <p className="text-xs text-[var(--foreground-muted)]">
-                  Controls maximum length of AI responses.
-                </p>
-              </div>
-
-              {/* Max Context Length */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <FileText size={16} className="text-[var(--foreground-muted)]" />
-                    <label className="text-sm font-medium">Max Context Length</label>
-                  </div>
-                  <span className="text-sm font-mono bg-[var(--surface-hover)] px-2 py-1 rounded">
-                    {(maxContext / 1000).toFixed(0)}k chars
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="2000"
-                  max="100000"
-                  step="2000"
-                  value={maxContext}
-                  onChange={(e) => setMaxContext(Number(e.target.value))}
-                  className="w-full h-2 bg-[var(--border)] rounded-lg appearance-none cursor-pointer accent-[var(--primary)]"
-                />
-                <p className="text-xs text-[var(--foreground-muted)]">
-                  How much of your material is sent to AI. Higher = more content but more expensive.
-                </p>
-              </div>
-
               {/* API Mode Toggle */}
               <div className="space-y-3">
                 <label className="text-sm font-medium">AI Provider</label>
@@ -271,6 +239,31 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               {/* Conditional Content Based on API Mode */}
               {apiMode === "default" ? (
                 <div key="default-mode" className="space-y-4">
+                  {/* Max Output Length - Default API (Unlimited) */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Type size={16} className="text-[var(--foreground-muted)]" />
+                        <label className="text-sm font-medium">Max Output Length</label>
+                      </div>
+                      <span className="text-sm font-mono bg-[var(--surface-hover)] px-2 py-1 rounded">
+                        {maxTokens === 100000 ? 'Unlimited' : `${maxTokens} tokens`}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="100"
+                      max="100000"
+                      step="100"
+                      value={maxTokens}
+                      onChange={(e) => setMaxTokens(Number(e.target.value))}
+                      className="w-full h-2 bg-[var(--border)] rounded-lg appearance-none cursor-pointer accent-[var(--primary)]"
+                    />
+                    <p className="text-xs text-[var(--foreground-muted)]">
+                      Controls maximum length of AI responses. Context is automatically set to 1M characters.
+                    </p>
+                  </div>
+                  
                   <div className="flex items-center gap-2">
                     <Brain size={16} className="text-[var(--foreground-muted)]" />
                     <label className="text-sm font-medium">AI Model</label>
@@ -410,6 +403,56 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     />
                     <p className="text-xs text-[var(--foreground-muted)]">
                       The exact model name to request from your API provider.
+                    </p>
+                  </div>
+
+                  {/* Max Output Length - Custom API */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Type size={16} className="text-[var(--foreground-muted)]" />
+                        <label className="text-sm font-medium">Max Output Length</label>
+                      </div>
+                      <span className="text-sm font-mono bg-[var(--surface-hover)] px-2 py-1 rounded">
+                        {customMaxTokens === 1000000 ? 'Unlimited' : `${customMaxTokens.toLocaleString()} tokens`}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="100"
+                      max="1000000"
+                      step="1000"
+                      value={customMaxTokens}
+                      onChange={(e) => setCustomMaxTokens(Number(e.target.value))}
+                      className="w-full h-2 bg-[var(--border)] rounded-lg appearance-none cursor-pointer accent-[var(--primary)]"
+                    />
+                    <p className="text-xs text-[var(--foreground-muted)]">
+                      Controls maximum length of AI responses. Set to max for unlimited output.
+                    </p>
+                  </div>
+
+                  {/* Max Context Length - Custom API */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileText size={16} className="text-[var(--foreground-muted)]" />
+                        <label className="text-sm font-medium">Max Context Length</label>
+                      </div>
+                      <span className="text-sm font-mono bg-[var(--surface-hover)] px-2 py-1 rounded">
+                        {customMaxContext >= 1000000 ? `${(customMaxContext / 1000000).toFixed(1)}M` : `${(customMaxContext / 1000).toFixed(0)}k`} chars
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="2000"
+                      max="10000000"
+                      step="10000"
+                      value={customMaxContext}
+                      onChange={(e) => setCustomMaxContext(Number(e.target.value))}
+                      className="w-full h-2 bg-[var(--border)] rounded-lg appearance-none cursor-pointer accent-[var(--primary)]"
+                    />
+                    <p className="text-xs text-[var(--foreground-muted)]">
+                      How much of your material is sent to AI. Can be set up to 10M characters for large contexts.
                     </p>
                   </div>
                 </form>

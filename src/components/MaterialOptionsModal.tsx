@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { X, Pencil, Trash2, Upload, FileText, Loader2, Globe, ChevronDown, Check } from "lucide-react";
+import { X, Pencil, Trash2, Upload, FileText, Loader2, Globe, ChevronDown, Check, FileDown } from "lucide-react";
 import { materialsAPI } from "@/lib/api";
 
 // Supported AI languages
@@ -239,6 +239,25 @@ export function MaterialOptionsModal({
               <p className="text-sm font-medium text-[var(--foreground)]">Edit Content</p>
               <p className="text-xs text-[var(--foreground-muted)]">
                 Modify or cleanup with AI
+              </p>
+            </div>
+          </button>
+
+          {/* Export PDF Button */}
+          <button
+            onClick={() => {
+              // TODO: Implement PDF export
+              alert("PDF Export feature coming soon! This will generate a learning summary report.");
+            }}
+            className="w-full flex items-center gap-3 p-3 rounded-xl border border-[var(--border)] hover:border-green-400 hover:bg-green-50/50 dark:hover:bg-green-900/10 transition-all group"
+          >
+            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors">
+              <FileDown size={18} className="text-green-600 dark:text-green-400" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-medium text-[var(--foreground)]">Export Learning Report</p>
+              <p className="text-xs text-[var(--foreground-muted)]">
+                Download PDF summary
               </p>
             </div>
           </button>
