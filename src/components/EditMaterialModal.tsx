@@ -14,8 +14,8 @@ interface EditMaterialModalProps {
   onUpdate: () => void;
 }
 
-// Max context default (from user settings, default 8000)
-const DEFAULT_MAX_CONTEXT = 8000;
+// Max context default - 1M for HaluAI Gateway (consistent with ChatPanel)
+const DEFAULT_MAX_CONTEXT = 1000000;
 
 export function EditMaterialModal({ 
   isOpen, 

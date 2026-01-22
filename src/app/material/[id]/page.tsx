@@ -421,10 +421,64 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
     }
   };
 
-  const handleUpload = async (data: { title: string; content?: string; file?: File }) => {
-    const response = await materialsAPI.create(data);
+  const handleUpload = async (data: { 
+    title: string; 
+    content?: string; 
+    files?: File[]; 
+    description?: string;
+    type: "file" | "text" | "research";
+    smartCleanup?: boolean 
+  }) => {
+    // Research mode - create and redirect to chat
+    if (data.type === "research") {
+      const response = await materialsAPI.create({
+        title: data.title,
+        type: "research"
+      });
+      router.push(`/material/${response.material.id}`);
+      return;
+    }
+    // File mode - parse and combine multiple files
+    else if (data.files && data.files.length > 0) {
+      let combinedContent = "";
+      let fileType = "text"; // Default type
+      
+      for (let i = 0; i < data.files.length; i++) {
+        const file = data.files[i];
+        
+        // Determine type from first file
+        if (i === 0) {
+          if (file.type === "application/pdf") fileType = "pdf";
+          else if (file.type.includes("word")) fileType = "docx";
+          else if (file.type === "text/markdown") fileType = "markdown";
+        }
+        
+        const parsed = await materialsAPI.parse(file, data.smartCleanup || false);
+        // Add separator between files if more than one
+        if (combinedContent && parsed.content) {
+          combinedContent += `\n\n--- ${file.name} ---\n\n`;
+        }
+        combinedContent += parsed.content;
+      }
+      
+      const response = await materialsAPI.create({ 
+        title: data.title, 
+        content: combinedContent,
+        type: fileType
+      });
+      router.push(`/material/${response.material.id}`);
+    } 
+    // Text mode - direct content
+    else if (data.content) {
+      const response = await materialsAPI.create({
+        title: data.title,
+        content: data.content,
+        type: "text"
+      });
+      router.push(`/material/${response.material.id}`);
+    }
+    
     await fetchMaterials();
-    router.push(`/material/${response.material.id}`);
   };
 
   const handleGenerateGlossary = async () => {
@@ -613,6 +667,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
           {activeTab === "chat" && (
             <ChatPanel
               messages={messages}
+              materialContentLength={material.content?.length || 0}
               onSendMessage={handleSendMessage}
               onClearHistory={handleClearChat}
               onDeleteMessage={handleDeleteMessage}

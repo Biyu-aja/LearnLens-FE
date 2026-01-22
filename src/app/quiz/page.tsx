@@ -171,11 +171,63 @@ export default function QuizPage() {
     setQuizzes([...quizzes]);
   };
 
-  const handleUpload = async (data: { title: string; content?: string; file?: File }) => {
-    const response = await materialsAPI.create(data);
-    await loadData();
-    // Auto-select the newly uploaded material
-    setSelectedMaterials(prev => [...prev, response.material.id]);
+  const handleUpload = async (data: { 
+    title: string; 
+    content?: string; 
+    files?: File[]; 
+    description?: string;
+    type: "file" | "text" | "research";
+    smartCleanup?: boolean 
+  }) => {
+    // Research mode - create and redirect
+    if (data.type === "research") {
+      const response = await materialsAPI.create({
+        title: data.title,
+        type: "research"
+      });
+      await loadData();
+      setSelectedMaterials(prev => [...prev, response.material.id]);
+      return;
+    }
+    // File mode - parse and combine multiple files
+    else if (data.files && data.files.length > 0) {
+      let combinedContent = "";
+      let fileType = "text";
+      
+      for (let i = 0; i < data.files.length; i++) {
+        const file = data.files[i];
+        
+        if (i === 0) {
+          if (file.type === "application/pdf") fileType = "pdf";
+          else if (file.type.includes("word")) fileType = "docx";
+          else if (file.type === "text/markdown") fileType = "markdown";
+        }
+        
+        const parsed = await materialsAPI.parse(file, data.smartCleanup || false);
+        if (combinedContent && parsed.content) {
+          combinedContent += `\n\n--- ${file.name} ---\n\n`;
+        }
+        combinedContent += parsed.content;
+      }
+      
+      const response = await materialsAPI.create({ 
+        title: data.title, 
+        content: combinedContent,
+        type: fileType
+      });
+      await loadData();
+      setSelectedMaterials(prev => [...prev, response.material.id]);
+    } 
+    // Text mode
+    else if (data.content) {
+      const response = await materialsAPI.create({
+        title: data.title,
+        content: data.content,
+        type: "text"
+      });
+      await loadData();
+      setSelectedMaterials(prev => [...prev, response.material.id]);
+    }
   };
 
   if (authLoading || isLoading || !user) {

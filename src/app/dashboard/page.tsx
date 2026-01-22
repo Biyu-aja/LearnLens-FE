@@ -61,8 +61,18 @@ export default function DashboardPage() {
     // File mode - parse and combine multiple files
     else if (data.files && data.files.length > 0) {
       let combinedContent = "";
+      let fileType = "text"; // Default type
       
-      for (const file of data.files) {
+      for (let i = 0; i < data.files.length; i++) {
+        const file = data.files[i];
+        
+        // Determine type from first file
+        if (i === 0) {
+          if (file.type === "application/pdf") fileType = "pdf";
+          else if (file.type.includes("word")) fileType = "docx";
+          else if (file.type === "text/markdown") fileType = "markdown";
+        }
+        
         const parsed = await materialsAPI.parse(file, data.smartCleanup || false);
         // Add separator between files if more than one
         if (combinedContent && parsed.content) {
@@ -74,7 +84,7 @@ export default function DashboardPage() {
       await materialsAPI.create({ 
         title: data.title, 
         content: combinedContent,
-        type: "pdf"
+        type: fileType
       });
     } 
     // Text mode - direct content

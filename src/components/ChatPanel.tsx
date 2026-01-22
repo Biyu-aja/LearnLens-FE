@@ -11,6 +11,7 @@ import { MessageContextMenu } from "@/components/MessageContextMenu";
 
 interface ChatPanelProps {
   messages: Message[];
+  materialContentLength: number; // Length of material content for accurate memory calculation
   onSendMessage: (message: string) => Promise<void>;
   onClearHistory: () => Promise<void>;
   onDeleteMessage?: (messageId: string) => Promise<void>;
@@ -38,6 +39,7 @@ interface ChatPanelProps {
 
 export function ChatPanel({ 
   messages, 
+  materialContentLength,
   onSendMessage, 
   onClearHistory,
   onDeleteMessage,
@@ -82,29 +84,32 @@ export function ChatPanel({
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const longPressTriggered = useRef(false);
 
-  // Calculate memory usage
+  // Calculate memory usage - includes material content + chat messages
   // Use custom API settings if configured, otherwise use default settings
   const isUsingCustomAPI = user?.customApiUrl && user?.hasCustomApiKey;
   const MAX_CONTEXT = isUsingCustomAPI 
-    ? (user?.customMaxContext || 8000) 
-    : (user?.maxContext || 1000000); // 1M for HaluAI Gateway
+    ? (user?.customMaxContext || 1000000) 
+    : (user?.maxContext || 1000000); // 1M default for HaluAI Gateway
+  
+  // Total context = material content + all chat messages
+  const chatMessagesLength = messages.reduce((sum, msg) => sum + msg.content.length, 0);
+  const totalContextUsed = materialContentLength + chatMessagesLength;
     
   const memoryUsage = {
-    used: messages.reduce((sum, msg) => sum + msg.content.length, 0),
+    used: totalContextUsed,
     max: MAX_CONTEXT,
-    percentage: Math.round((messages.reduce((sum, msg) => sum + msg.content.length, 0) / MAX_CONTEXT) * 100),
+    percentage: Math.round((totalContextUsed / MAX_CONTEXT) * 100),
     status: (() => {
-      const pct = (messages.reduce((sum, msg) => sum + msg.content.length, 0) / MAX_CONTEXT) * 100;
+      const pct = (totalContextUsed / MAX_CONTEXT) * 100;
       if (pct > 80) return 'critical';
       if (pct > 50) return 'warning';
       return 'ok';
     })()
   };
 
+  // Format number with locale string for consistency with EditMaterialModal
   const formatNumber = (num: number) => {
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toString();
+    return num.toLocaleString();
   };
 
   // Handle text selection - Ask AI to explain
@@ -303,42 +308,43 @@ export function ChatPanel({
         </div>
       </div>
 
-      {/* Memory Indicator */}
-      {messages.length > 0 && (
-        <div className="px-4 sm:px-6 py-2 border-b border-[var(--border)] bg-[var(--background)]">
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
-              <div className="flex justify-between text-xs mb-1.5">
-                <span className="text-[var(--foreground-muted)] font-medium">AI Memory</span>
-                <span className="text-[var(--foreground-muted)]">
-                  {formatNumber(memoryUsage.used)} / {formatNumber(memoryUsage.max)} chars
-                </span>
-              </div>
-              <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full transition-all duration-300 ${
-                    memoryUsage.status === 'critical' ? 'bg-red-500' :
-                    memoryUsage.status === 'warning' ? 'bg-yellow-500' : 'bg-green-500'
-                  }`}
-                  style={{ width: `${Math.min(memoryUsage.percentage, 100)}%` }}
-                />
-              </div>
+      {/* Memory Indicator - Always show to display material context usage */}
+      <div className="px-4 sm:px-6 py-2 border-b border-[var(--border)] bg-[var(--background)]">
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <div className="flex justify-between text-xs mb-1.5">
+              <span className="text-[var(--foreground-muted)] font-medium">AI Memory</span>
+              <span className={`${
+                memoryUsage.percentage >= 100 ? 'text-red-500' :
+                memoryUsage.percentage >= 80 ? 'text-amber-500' : 'text-[var(--foreground-muted)]'
+              }`}>
+                {formatNumber(memoryUsage.used)} / {formatNumber(memoryUsage.max)} characters
+              </span>
             </div>
-            <div className={`text-xs font-medium px-2 py-1 rounded ${
-              memoryUsage.status === 'critical' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' :
-              memoryUsage.status === 'warning' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' :
-              'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-            }`}>
-              {memoryUsage.percentage}%
+            <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-300 ${
+                  memoryUsage.status === 'critical' ? 'bg-red-500' :
+                  memoryUsage.status === 'warning' ? 'bg-yellow-500' : 'bg-green-500'
+                }`}
+                style={{ width: `${Math.min(memoryUsage.percentage, 100)}%` }}
+              />
             </div>
           </div>
-          {memoryUsage.status === 'critical' && (
-            <p className="text-xs text-red-600 dark:text-red-400 mt-1.5">
-              ⚠️ Memory almost full. Consider clearing chat history or exporting this session.
-            </p>
-          )}
+          <div className={`text-xs font-medium px-2 py-1 rounded ${
+            memoryUsage.status === 'critical' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' :
+            memoryUsage.status === 'warning' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' :
+            'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+          }`}>
+            {memoryUsage.percentage}%
+          </div>
         </div>
-      )}
+        {memoryUsage.status === 'critical' && (
+          <p className="text-xs text-red-600 dark:text-red-400 mt-1.5">
+            ⚠️ Memory almost full. Consider clearing chat history or editing material content.
+          </p>
+        )}
+      </div>
 
       {/* Messages */}
       <div 
