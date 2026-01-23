@@ -42,6 +42,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [customMaxContext, setCustomMaxContext] = useState(8000);
   
   const [apiMode, setApiMode] = useState<"default" | "custom">("default");
+  const [savedApiMode, setSavedApiMode] = useState<"default" | "custom">("default"); // Track saved mode
   const [customApiUrl, setCustomApiUrl] = useState("");
   const [customApiKey, setCustomApiKey] = useState("");
   const [customModel, setCustomModel] = useState("");
@@ -72,11 +73,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setTestResult(null);
       
       // Determine API mode based on saved settings
-      if (user.customApiUrl || user.hasCustomApiKey || user.customModel) {
-        setApiMode("custom");
-      } else {
-        setApiMode("default");
-      }
+      // Check if user has actively chosen custom API (has URL AND either key or model)
+      const hasActiveCustomApi = user.customApiUrl && (user.hasCustomApiKey || user.customModel);
+      const determinedMode = hasActiveCustomApi ? "custom" : "default";
+      
+      setApiMode(determinedMode);
+      setSavedApiMode(determinedMode);
       
       fetchModels();
     }
@@ -158,14 +160,17 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       } else {
         // Save default API settings
         updateData.maxTokens = maxTokens;
-        updateData.maxContext = 1000000; // Always set to 1M for HaluAI Gateway
-        // Clear custom API settings when switching to default
+        updateData.maxContext = 500000; // Set to 500k for HaluAI Gateway
+        // IMPORTANT: Clear custom API settings when switching to default
+        // This ensures the backend knows to use HaluAI Gateway
         updateData.customApiUrl = "";
         updateData.customModel = "";
+        updateData.customApiKey = ""; // Clear the API key too
       }
 
       const { user: updatedUser } = await authAPI.updateSettings(updateData as Parameters<typeof authAPI.updateSettings>[0]);
       updateUser(updatedUser);
+      setSavedApiMode(apiMode); // Update saved mode after successful save
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save settings");
@@ -260,7 +265,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       className="w-full h-2 bg-[var(--border)] rounded-lg appearance-none cursor-pointer accent-[var(--primary)]"
                     />
                     <p className="text-xs text-[var(--foreground-muted)]">
-                      Controls maximum length of AI responses. Context is automatically set to 1M characters.
+                      Controls maximum length of AI responses. Context is automatically set to 500k characters.
                     </p>
                   </div>
                   

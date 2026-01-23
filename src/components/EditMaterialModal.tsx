@@ -26,7 +26,7 @@ export function EditMaterialModal({
   onUpdate 
 }: EditMaterialModalProps) {
   const [title, setTitle] = useState(initialTitle);
-  const [content, setContent] = useState(initialContent);
+  const [content, setContent] = useState(initialContent || "");
   const [isLoading, setIsLoading] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
   const [error, setError] = useState("");
@@ -37,7 +37,7 @@ export function EditMaterialModal({
   useEffect(() => {
     if (isOpen) {
       setTitle(initialTitle);
-      setContent(initialContent);
+      setContent(initialContent || "");
       setError("");
       setSuccess("");
     }
@@ -59,7 +59,7 @@ export function EditMaterialModal({
       await materialsAPI.update(materialId, { title, content });
       onUpdate();
       onClose();
-    } catch (err) {
+    } catch (err) { // eslint-disable-line @typescript-eslint/no-unused-vars
       setError("Failed to update material");
     } finally {
       setIsLoading(false);
@@ -166,7 +166,7 @@ export function EditMaterialModal({
                           const res = await materialsAPI.parse(file);
                           const separator = content ? "\n\n--- ADDITIONAL CONTENT ---\n\n" : "";
                           setContent((prev) => prev + separator + res.content);
-                        } catch (err) {
+                        } catch (err) { // eslint-disable-line @typescript-eslint/no-unused-vars
                           setError("Failed to read file");
                         } finally {
                           setIsLoading(false);

@@ -162,6 +162,26 @@ export function Sidebar({ materials, onNewMaterial }: SidebarProps) {
           )}
         </div>
 
+        {/* Explore Link */}
+        <div className="px-4 py-2">
+          <Link
+            href="/explore"
+            onClick={() => setIsOpen(false)}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
+              pathname === "/explore"
+                ? "bg-gradient-to-r from-teal-500 to-emerald-500 text-white"
+                : "hover:bg-[var(--sidebar-hover)] text-[var(--sidebar-text-muted)]"
+            }`}
+          >
+            <Globe size={16} className="shrink-0" />
+            <span className="flex-1 text-sm font-medium">Explore Community</span>
+            <ChevronRight 
+              size={14} 
+              className={`shrink-0 ${pathname === "/explore" ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} 
+            />
+          </Link>
+        </div>
+
         {/* Quiz Link */}
         <div className="px-4 py-2">
           <Link

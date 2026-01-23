@@ -30,6 +30,8 @@ interface MaterialOptionsModalProps {
   onRefresh: () => void;
   language?: AILanguage;
   onLanguageChange?: (lang: AILanguage) => void;
+  isPublic?: boolean;
+  onTogglePublic?: (isPublic: boolean) => void;
 }
 
 export function MaterialOptionsModal({
@@ -42,6 +44,8 @@ export function MaterialOptionsModal({
   onRefresh,
   language = "en",
   onLanguageChange,
+  isPublic,
+  onTogglePublic,
 }: MaterialOptionsModalProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -222,6 +226,41 @@ export function MaterialOptionsModal({
                 </div>
               )}
             </div>
+          )}
+
+          {/* Publish / Unpublish Button */}
+          {onTogglePublic && isPublic !== undefined && (
+             <button
+                onClick={() => {
+                  onTogglePublic(!isPublic);
+                  onClose();
+                }}
+                className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all group ${
+                    isPublic 
+                    ? "border-amber-200 dark:border-amber-800/30 hover:bg-amber-50 dark:hover:bg-amber-900/10"
+                    : "border-[var(--border)] hover:border-teal-400 hover:bg-teal-50/50 dark:hover:bg-teal-900/10"
+                }`}
+              >
+                <div className={`p-2 rounded-lg transition-colors ${
+                    isPublic
+                    ? "bg-amber-100 dark:bg-amber-900/30 group-hover:bg-amber-200 dark:group-hover:bg-amber-900/50"
+                    : "bg-teal-100 dark:bg-teal-900/30 group-hover:bg-teal-200 dark:group-hover:bg-teal-900/50"
+                }`}>
+                  {isPublic ? (
+                     <Globe size={18} className="text-amber-600 dark:text-amber-400" />    
+                  ) : (
+                     <Upload size={18} className="text-teal-600 dark:text-teal-400" />
+                  )}
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-medium text-[var(--foreground)]">
+                    {isPublic ? "Unpublish Material" : "Publish to Community"}
+                  </p>
+                  <p className="text-xs text-[var(--foreground-muted)]">
+                    {isPublic ? "Make private again" : "Share with other learners"}
+                  </p>
+                </div>
+              </button>
           )}
 
           {/* Edit Content Button */}

@@ -79,9 +79,11 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
   --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
   --color-border: var(--border);
   --font-sans: "Inter", system-ui, sans-serif;
 }

@@ -207,6 +207,17 @@ export const materialsAPI = {
         fetchAPI<{ success: boolean }>(`/api/materials/${materialId}/messages/${messageId}`, {
             method: "DELETE",
         }),
+
+    publish: (id: string, data?: { title: string; description: string }) =>
+        fetchAPI<{ success: boolean; material: Material }>(`/api/materials/${id}/publish`, {
+            method: "POST",
+            body: JSON.stringify(data || {}),
+        }),
+
+    unpublish: (id: string) =>
+        fetchAPI<{ success: boolean; material: Material }>(`/api/materials/${id}/unpublish`, {
+            method: "POST",
+        }),
 };
 
 // Chat API
@@ -416,6 +427,7 @@ export interface MaterialSummary {
         messages: number;
         quizzes: number;
     };
+    publishedAt?: string | null;
 }
 
 export interface Material {
@@ -429,6 +441,9 @@ export interface Material {
     updatedAt: string;
     messages: Message[];
     quizzes: Quiz[];
+    isPublic?: boolean;
+    publishedAt?: string | null;
+    views?: number;
 }
 
 export interface Message {
@@ -662,4 +677,31 @@ export const chatSessionsAPI = {
             throw error;
         }
     },
+};
+
+// Explore API
+export interface ExploreMaterial extends MaterialSummary {
+    user: {
+        name: string | null;
+        image: string | null;
+    };
+    isLiked: boolean;
+    likeCount: number;
+    forkCount: number;
+    description?: string;
+    isPublic?: boolean;
+}
+
+export const exploreAPI = {
+    list: (sort: 'popular' | 'latest' = 'latest', query?: string) =>
+        fetchAPI<{ success: boolean; materials: ExploreMaterial[] }>(`/api/explore?sort=${sort}${query ? `&query=${encodeURIComponent(query)}` : ''}`),
+
+    get: (id: string) =>
+        fetchAPI<{ success: boolean; material: ExploreMaterial & Material }>(`/api/explore/${id}`),
+
+    toggleLike: (id: string) =>
+        fetchAPI<{ success: boolean; liked: boolean }>(`/api/explore/${id}/like`, { method: "POST" }),
+
+    fork: (id: string) =>
+        fetchAPI<{ success: boolean; material: Material }>(`/api/explore/${id}/fork`, { method: "POST" }),
 };

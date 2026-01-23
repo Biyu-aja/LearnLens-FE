@@ -29,6 +29,7 @@ import { SummaryConfigModal, SummaryConfig } from "@/components/SummaryConfigMod
 import { MaterialOptionsModal } from "@/components/MaterialOptionsModal";
 import { materialsAPI, chatAPI, aiAPI, Material, MaterialSummary, Message, Quiz, GlossaryTerm, Flashcard } from "@/lib/api";
 import { AnalyticsPanel } from "@/components/AnalyticsPanel";
+import { PublishConfigModal } from "@/components/PublishConfigModal";
 import { AILanguage } from "@/components/MaterialOptionsModal";
 
 type Tab = "chat" | "summary" | "quiz" | "glossary" | "flashcards" | "analytics";
@@ -36,7 +37,7 @@ type Tab = "chat" | "summary" | "quiz" | "glossary" | "flashcards" | "analytics"
 export default function MaterialPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { user, loading: authLoading } = useAuth();
-  const { settings } = useSettings();
+  // const { settings } = useSettings();
   const router = useRouter();
   
   const [material, setMaterial] = useState<Material | null>(null);
@@ -59,6 +60,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
   const [showQuizConfig, setShowQuizConfig] = useState(false);
   const [showSummaryConfig, setShowSummaryConfig] = useState(false);
   const [showMaterialOptions, setShowMaterialOptions] = useState(false);
+  const [showPublishConfig, setShowPublishConfig] = useState(false);
 
   // AbortController for stopping stream
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -78,6 +80,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
       fetchGlossary();
       fetchFlashcards();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, id]);
 
   const fetchMaterial = async () => {
@@ -150,7 +153,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
 
     try {
       let streamContent = "";
-      let realUserMessageId: string | null = null;
+      // let realUserMessageId: string | null = null;
       
       await chatAPI.sendMessageStream(
         id,
@@ -166,7 +169,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
         },
         // On user message received from server (replace optimistic with real)
         (userMessage: Message) => {
-          realUserMessageId = userMessage.id;
+          // realUserMessageId = userMessage.id;
           setMessages((prev) =>
             prev.map((m) =>
               m.id === optimisticUserMsgId ? userMessage : m
@@ -516,7 +519,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
         setActiveTab("glossary");
       }
       alert(`"${term}" has been added to your glossary!`);
-    } catch (error: any) {
+    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.error("Failed to add term to glossary:", error);
       if (error.message?.includes("already exists")) {
         alert("This term already exists in the glossary.");
@@ -590,6 +593,28 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
 
   // Always show Analytics tab
   tabs.push({ id: "analytics", label: "Analytics", icon: BarChart3 });
+
+  const handleTogglePublic = async (shouldBePublic: boolean) => {
+    try {
+      if (shouldBePublic) {
+        setShowPublishConfig(true);
+        setShowMaterialOptions(false);
+      } else {
+        await materialsAPI.unpublish(id);
+        alert("Material is now private.");
+        fetchMaterial();
+      }
+    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      console.error("Failed to toggle publish status:", error);
+      alert(error.message || "Failed to update status");
+    }
+  };
+
+  const handlePublishConfirm = async (data: { title: string; description: string }) => {
+      await materialsAPI.publish(id, data);
+      alert("Material published successfully! It is now visible in the Explore section.");
+      fetchMaterial();
+  };
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
@@ -752,6 +777,16 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
         />
       )}
 
+      {/* Publish Config Modal */}
+      {material && (
+        <PublishConfigModal
+          isOpen={showPublishConfig}
+          onClose={() => setShowPublishConfig(false)}
+          onPublish={handlePublishConfirm}
+          initialTitle={material.title}
+        />
+      )}
+
       {/* Settings modal - Rendered at root level */}
       <SettingsModal
         isOpen={isSettingsOpen}
@@ -791,6 +826,8 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
           onRefresh={fetchMaterial}
           language={aiLanguage}
           onLanguageChange={setAiLanguage}
+          isPublic={material.isPublic}
+          onTogglePublic={handleTogglePublic}
         />
       )}
     </div>

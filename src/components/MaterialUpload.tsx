@@ -91,7 +91,7 @@ export function MaterialUpload({ isOpen, onClose, onUpload }: MaterialUploadProp
       setIsLoading(true);
       try {
         await onUpload({
-          title: "New Research Session",
+          title: title.trim() || "New Research Session",
           type: mode,
         });
         setTitle("");
