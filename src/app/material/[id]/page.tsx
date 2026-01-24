@@ -610,7 +610,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
     }
   };
 
-  const handlePublishConfirm = async (data: { title: string; description: string }) => {
+  const handlePublishConfirm = async (data: { title: string; description: string; content: string }) => {
       await materialsAPI.publish(id, data);
       alert("Material published successfully! It is now visible in the Explore section.");
       fetchMaterial();
@@ -784,6 +784,8 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
           onClose={() => setShowPublishConfig(false)}
           onPublish={handlePublishConfirm}
           initialTitle={material.title}
+          initialContent={material.content || ""}
+          materialId={material.id}
         />
       )}
 

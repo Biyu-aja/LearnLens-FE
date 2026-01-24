@@ -158,8 +158,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         updateData.customMaxTokens = customMaxTokens;
         updateData.customMaxContext = customMaxContext;
       } else {
-        // Save default API settings
-        updateData.maxTokens = maxTokens;
+        // Save default API settings with optimal defaults
+        updateData.maxTokens = 4000; // Force 4000 tokens for optimal performance
         updateData.maxContext = 500000; // Set to 500k for HaluAI Gateway
         // IMPORTANT: Clear custom API settings when switching to default
         // This ensures the backend knows to use HaluAI Gateway
@@ -244,30 +244,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               {/* Conditional Content Based on API Mode */}
               {apiMode === "default" ? (
                 <div key="default-mode" className="space-y-4">
-                  {/* Max Output Length - Default API (Unlimited) */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Type size={16} className="text-[var(--foreground-muted)]" />
-                        <label className="text-sm font-medium">Max Output Length</label>
-                      </div>
-                      <span className="text-sm font-mono bg-[var(--surface-hover)] px-2 py-1 rounded">
-                        {maxTokens === 100000 ? 'Unlimited' : `${maxTokens} tokens`}
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min="100"
-                      max="100000"
-                      step="100"
-                      value={maxTokens}
-                      onChange={(e) => setMaxTokens(Number(e.target.value))}
-                      className="w-full h-2 bg-[var(--border)] rounded-lg appearance-none cursor-pointer accent-[var(--primary)]"
-                    />
-                    <p className="text-xs text-[var(--foreground-muted)]">
-                      Controls maximum length of AI responses. Context is automatically set to 500k characters.
-                    </p>
-                  </div>
+                  {/* Max Output Length - Hidden for Default API to simplify UX */}
+                  {/* Instead, we force optimal defaults in handleSave (4000 tokens) */}
                   
                   <div className="flex items-center gap-2">
                     <Brain size={16} className="text-[var(--foreground-muted)]" />

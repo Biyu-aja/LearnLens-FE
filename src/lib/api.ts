@@ -208,7 +208,7 @@ export const materialsAPI = {
             method: "DELETE",
         }),
 
-    publish: (id: string, data?: { title: string; description: string }) =>
+    publish: (id: string, data?: { title: string; description: string; content?: string }) =>
         fetchAPI<{ success: boolean; material: Material }>(`/api/materials/${id}/publish`, {
             method: "POST",
             body: JSON.stringify(data || {}),
@@ -682,9 +682,11 @@ export const chatSessionsAPI = {
 // Explore API
 export interface ExploreMaterial extends MaterialSummary {
     user: {
+        id: string;
         name: string | null;
         image: string | null;
     };
+    originalMaterialId?: string | null;
     isLiked: boolean;
     likeCount: number;
     forkCount: number;
@@ -693,8 +695,8 @@ export interface ExploreMaterial extends MaterialSummary {
 }
 
 export const exploreAPI = {
-    list: (sort: 'popular' | 'latest' = 'latest', query?: string) =>
-        fetchAPI<{ success: boolean; materials: ExploreMaterial[] }>(`/api/explore?sort=${sort}${query ? `&query=${encodeURIComponent(query)}` : ''}`),
+    list: (sort: 'popular' | 'latest' = 'latest', query?: string, userId?: string) =>
+        fetchAPI<{ success: boolean; materials: ExploreMaterial[] }>(`/api/explore?sort=${sort}${query ? `&query=${encodeURIComponent(query)}` : ''}${userId ? `&userId=${userId}` : ''}`),
 
     get: (id: string) =>
         fetchAPI<{ success: boolean; material: ExploreMaterial & Material }>(`/api/explore/${id}`),

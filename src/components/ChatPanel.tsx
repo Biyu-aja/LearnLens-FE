@@ -61,8 +61,8 @@ export function ChatPanel({
   hasQuiz,
   hasGlossary,
   hasFlashcards,
-  // language = "id",
-  // onLanguageChange
+  language = "id",
+  onLanguageChange
 }: ChatPanelProps) {
   const { user } = useAuth();
   const { settings } = useSettings();

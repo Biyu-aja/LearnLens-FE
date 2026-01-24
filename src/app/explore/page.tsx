@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Sidebar } from "@/components/Sidebar";
 import { exploreAPI, ExploreMaterial, materialsAPI, MaterialSummary } from "@/lib/api";
 import { MaterialUpload } from "@/components/MaterialUpload";
+import { ExploreDetailModal } from "@/components/ExploreDetailModal";
 
 export default function ExplorePage() {
   const { user, loading: authLoading } = useAuth();
@@ -16,7 +17,9 @@ export default function ExplorePage() {
   const [publicMaterials, setPublicMaterials] = useState<ExploreMaterial[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sortBy, setSortBy] = useState<'latest' | 'popular'>('latest');
+  const [view, setView] = useState<'community' | 'my-posts'>('community');
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(null);
   
   // Sidebar state
   const [userMaterials, setUserMaterials] = useState<MaterialSummary[]>([]);
@@ -36,7 +39,7 @@ export default function ExplorePage() {
       fetchUserMaterials();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, sortBy]);
+  }, [user, sortBy, view]);
 
   const fetchUserMaterials = async () => {
     try {
@@ -50,7 +53,8 @@ export default function ExplorePage() {
   const fetchPublicMaterials = async () => {
     setIsLoading(true);
     try {
-      const response = await exploreAPI.list(sortBy, searchQuery);
+      const userId = view === 'my-posts' ? user?.id : undefined;
+      const response = await exploreAPI.list(sortBy, searchQuery, userId);
       setPublicMaterials(response.materials);
     } catch (error) {
       console.error("Failed to fetch public materials:", error);
@@ -87,6 +91,7 @@ export default function ExplorePage() {
         await exploreAPI.fork(id);
         alert("Material saved to your library!");
         fetchUserMaterials(); // Update sidebar
+        setSelectedMaterialId(null); // Close modal if open
     } catch (error) { // eslint-disable-line @typescript-eslint/no-unused-vars
         alert("Failed to save material.");
     }
@@ -94,9 +99,6 @@ export default function ExplorePage() {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleUpload = async (data: any) => {
-    // Placeholder - user should go to dashboard to manage upload usually, 
-    // but sidebar allows it. We'll reuse the logic from Dashboard if needed or just redirect.
-    // For now, let's keep it simple and redirect to dashboard after upload.
     router.push('/dashboard');
   };
 
@@ -121,10 +123,35 @@ export default function ExplorePage() {
           
           {/* Header & Search */}
           <div className="mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-4 flex items-center gap-2">
-                <Globe className="text-teal-500" />
-                Explore Community
-            </h1>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+                  <Globe className="text-teal-500" />
+                  Explore Community
+              </h1>
+              
+              <div className="flex bg-[var(--surface)] p-1 rounded-xl border border-[var(--border)] self-start sm:self-auto">
+                <button
+                  onClick={() => setView('community')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    view === 'community' 
+                      ? 'bg-[var(--primary)] text-white shadow-sm' 
+                      : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+                  }`}
+                >
+                  All Posts
+                </button>
+                <button
+                  onClick={() => setView('my-posts')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    view === 'my-posts' 
+                      ? 'bg-[var(--primary)] text-white shadow-sm' 
+                      : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+                  }`}
+                >
+                  My Posts
+                </button>
+              </div>
+            </div>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
                 <form onSubmit={handleSearch} className="relative w-full sm:w-96">
@@ -141,13 +168,13 @@ export default function ExplorePage() {
                 <div className="flex bg-[var(--surface)] p-1 rounded-lg border border-[var(--border)]">
                     <button 
                         onClick={() => setSortBy('latest')}
-                        className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${sortBy === 'latest' ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'}`}
+                        className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${sortBy === 'latest' ? 'bg-[var(--surface-hover)] text-[var(--foreground)] shadow-sm font-semibold' : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'}`}
                     >
                         <span className="flex items-center gap-1.5"><Clock size={14}/> Newest</span>
                     </button>
                     <button 
                         onClick={() => setSortBy('popular')}
-                         className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${sortBy === 'popular' ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'}`}
+                         className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${sortBy === 'popular' ? 'bg-[var(--surface-hover)] text-[var(--foreground)] shadow-sm font-semibold' : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'}`}
                     >
                         <span className="flex items-center gap-1.5"><TrendingUp size={14}/> Popular</span>
                     </button>
@@ -164,12 +191,23 @@ export default function ExplorePage() {
             <div className="text-center py-20 bg-[var(--surface)] rounded-2xl border border-[var(--border)] border-dashed">
                 <Globe size={48} className="mx-auto text-gray-300 mb-4" />
                 <h3 className="text-lg font-medium text-[var(--foreground)]">No materials found</h3>
-                <p className="text-[var(--foreground-muted)]">Be the first to share your learning material!</p>
+                <p className="text-[var(--foreground-muted)]">
+                  {view === 'my-posts' ? "You haven't published anything yet." : "Be the first to share your learning material!"}
+                </p>
+                {view === 'my-posts' && (
+                   <button onClick={() => router.push('/dashboard')} className="mt-4 text-[var(--primary)] hover:underline font-medium">
+                     Go to Dashboard to publish
+                   </button>
+                )}
             </div>
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2">
                 {publicMaterials.map((material) => (
-                    <div key={material.id} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden hover:shadow-lg transition-all flex flex-col">
+                    <div 
+                        key={material.id} 
+                        onClick={() => setSelectedMaterialId(material.id)}
+                        className="bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden hover:shadow-lg transition-all flex flex-col cursor-pointer group"
+                    >
                         <div className="p-5 flex-1">
                             {/* Author */}
                             <div className="flex items-center gap-2 mb-3">
@@ -177,13 +215,16 @@ export default function ExplorePage() {
                                     {material.user.image ? <img src={material.user.image} alt={material.user.name || "User"} className="w-full h-full rounded-full" /> : (material.user.name?.[0] || 'U')}
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium">{material.user.name || 'Anonymous'}</p>
+                                    <p className="text-sm font-medium">
+                                      {material.user.name || 'Anonymous'}
+                                      {user && material.user.id === user.id && <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">You</span>}
+                                    </p>
                                     <p className="text-[10px] text-[var(--foreground-muted)]">{new Date(material.createdAt).toLocaleDateString()}</p>
                                 </div>
                             </div>
 
                             <h3 className="text-lg font-bold mb-2 group-hover:text-[var(--primary)] transition-colors">
-                                <a href={`/explore/${material.id}`} className="hover:underline">{material.title}</a>
+                                {material.title}
                             </h3>
                             
                             {material.description && (
@@ -203,7 +244,10 @@ export default function ExplorePage() {
                         <div className="p-4 border-t border-[var(--border)] bg-[var(--background)] flex items-center justify-between">
                             <div className="flex items-center gap-4">
                                 <button 
-                                    onClick={() => handleLike(material.id, material.isLiked)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleLike(material.id, material.isLiked);
+                                    }}
                                     className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${material.isLiked ? 'text-rose-500' : 'text-gray-500 hover:text-rose-500'}`}
                                 >
                                     <Heart size={16} fill={material.isLiked ? "currentColor" : "none"} />
@@ -216,7 +260,10 @@ export default function ExplorePage() {
                             </div>
                             
                             <button 
-                                onClick={() => handleFork(material.id, material.title)}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleFork(material.id, material.title);
+                                }}
                                 className="text-xs font-medium bg-[var(--surface-hover)] hover:bg-[var(--border)] px-3 py-1.5 rounded-lg border border-[var(--border)] transition-colors flex items-center gap-1.5"
                             >
                                 <BookOpen size={14} />
@@ -237,6 +284,18 @@ export default function ExplorePage() {
         onClose={() => setShowUpload(false)}
         onUpload={handleUpload}
       />
+
+      {/* Explore Detail Modal */}
+      {selectedMaterialId && (
+        <ExploreDetailModal
+            materialId={selectedMaterialId}
+            isOpen={!!selectedMaterialId}
+            onClose={() => setSelectedMaterialId(null)}
+            onFork={handleFork}
+            onLike={handleLike}
+            onUpdate={fetchPublicMaterials}
+        />
+      )}
     </div>
   );
 }
