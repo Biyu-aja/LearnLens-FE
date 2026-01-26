@@ -27,7 +27,7 @@ import { SettingsModal } from "@/components/SettingsModal";
 import { QuizConfigModal, QuizConfig } from "@/components/QuizConfigModal";
 import { SummaryConfigModal, SummaryConfig } from "@/components/SummaryConfigModal";
 import { MaterialOptionsModal } from "@/components/MaterialOptionsModal";
-import { materialsAPI, chatAPI, aiAPI, Material, MaterialSummary, Message, Quiz, GlossaryTerm, Flashcard } from "@/lib/api";
+import { materialsAPI, chatAPI, aiAPI, analyticsAPI, Material, MaterialSummary, Message, Quiz, GlossaryTerm, Flashcard } from "@/lib/api";
 import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { PublishConfigModal } from "@/components/PublishConfigModal";
 import { AILanguage } from "@/components/MaterialOptionsModal";
@@ -222,6 +222,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
     
     try {
       await materialsAPI.deleteMessages(id);
+      await analyticsAPI.deleteEvaluations(id);
       setMessages([]);
     } catch (error) {
       console.error("Failed to clear chat:", error);
@@ -753,7 +754,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
             />
           )}
           {activeTab === "analytics" && (
-            <AnalyticsPanel materialId={id} />
+            <AnalyticsPanel materialId={id} language={aiLanguage} />
           )}
         </div>
       </main>

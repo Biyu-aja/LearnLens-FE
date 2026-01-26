@@ -179,7 +179,7 @@ export function ExploreDetailModal({
                     placeholder="Post Title"
                   />
                 ) : (
-                  <h1 className="text-3xl md:text-4xl font-bold leading-tight text-[var(--foreground)]">
+                  <h1 className="text-3xl md:text-4xl font-bold leading-tight text-[var(--foreground)] line-clamp-2 break-all">
                     {material.title}
                   </h1>
                 )}

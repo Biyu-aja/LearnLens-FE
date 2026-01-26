@@ -535,9 +535,15 @@ export const analyticsAPI = {
     getMaterialAnalytics: (materialId: string) =>
         fetchAPI<{ success: boolean; analytics: MaterialAnalytics }>(`/api/analytics/material/${materialId}`),
 
-    evaluateLearning: (materialId: string) =>
+    evaluateLearning: (materialId: string, language: string = "en") =>
         fetchAPI<{ success: boolean; evaluation: LearningEvaluation }>(`/api/analytics/evaluate/${materialId}`, {
             method: "POST",
+            body: JSON.stringify({ language }),
+        }),
+
+    deleteEvaluations: (materialId: string) =>
+        fetchAPI<{ success: boolean }>(`/api/analytics/evaluations/${materialId}`, {
+            method: "DELETE",
         }),
 
     getEvaluations: (materialId: string) =>

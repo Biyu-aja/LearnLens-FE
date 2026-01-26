@@ -99,7 +99,7 @@ export function PublishConfigModal({
              </div>
              <div>
                <h3 className="font-semibold text-lg">Publish to Explore</h3>
-               <p className="text-xs text-[var(--foreground-muted)]">Share a snapshot with the community</p>
+               <p className="text-xs text-[var(--foreground-muted)]">Share the Material with the community</p>
              </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-[var(--surface-hover)] rounded-lg transition-colors">
@@ -109,18 +109,7 @@ export function PublishConfigModal({
 
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
           <div className="p-6 overflow-y-auto space-y-5">
-            
-            <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex gap-3 text-sm text-amber-800 dark:text-amber-200">
-              <AlertTriangle size={20} className="shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium mb-1">Snapshot Only</p>
-                <p className="opacity-90">
-                  This creates a public copy of your material. Cleaning or editing content here <strong>DOES NOT</strong> affect your original private material or chat history.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1.5">Public Title</label>
                 <input

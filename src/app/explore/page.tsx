@@ -223,7 +223,7 @@ export default function ExplorePage() {
                                 </div>
                             </div>
 
-                            <h3 className="text-lg font-bold mb-2 group-hover:text-[var(--primary)] transition-colors">
+                            <h3 className="text-lg font-bold mb-2 group-hover:text-[var(--primary)] transition-colors line-clamp-2 break-all">
                                 {material.title}
                             </h3>
                             

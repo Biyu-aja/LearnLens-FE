@@ -6,9 +6,10 @@ import { analyticsAPI, MaterialAnalytics, ChatMessage, QuizAttempt, LearningEval
 
 interface AnalyticsPanelProps {
   materialId: string;
+  language?: string;
 }
 
-export function AnalyticsPanel({ materialId }: AnalyticsPanelProps) {
+export function AnalyticsPanel({ materialId, language = "en" }: AnalyticsPanelProps) {
   const [analytics, setAnalytics] = useState<MaterialAnalytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +59,7 @@ export function AnalyticsPanel({ materialId }: AnalyticsPanelProps) {
     try {
       setIsEvaluating(true);
       setEvalError(null);
-      const response = await analyticsAPI.evaluateLearning(materialId);
+      const response = await analyticsAPI.evaluateLearning(materialId, language);
       setSelectedEvaluation(response.evaluation);
       setEvaluations(prev => [response.evaluation, ...prev]);
     } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
