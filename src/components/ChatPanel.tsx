@@ -88,8 +88,8 @@ export function ChatPanel({
   // Use custom API settings if configured, otherwise use default settings
   const isUsingCustomAPI = user?.customApiUrl && user?.hasCustomApiKey;
   const MAX_CONTEXT = isUsingCustomAPI 
-    ? (user?.customMaxContext || 1000000) 
-    : (user?.maxContext || 1000000); // 1M default for HaluAI Gateway
+    ? (user?.customMaxContext || 200000) 
+    : (user?.maxContext || 200000); // 200k default for HaluAI Gateway
   
   // Total context = material content + all chat messages
   const chatMessagesLength = messages.reduce((sum, msg) => sum + msg.content.length, 0);
@@ -101,8 +101,8 @@ export function ChatPanel({
     percentage: Math.round((totalContextUsed / MAX_CONTEXT) * 100),
     status: (() => {
       const pct = (totalContextUsed / MAX_CONTEXT) * 100;
-      if (pct > 80) return 'critical';
-      if (pct > 50) return 'warning';
+      if (pct > 90) return 'critical';
+      if (pct > 70) return 'warning';
       return 'ok';
     })()
   };

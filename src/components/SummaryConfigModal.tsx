@@ -152,22 +152,48 @@ export function SummaryConfigModal({
               {/* AI Model */}
               <div>
                 <label className="block text-sm font-medium mb-2">AI Model</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {MAIN_MODELS.map((model) => (
-                    <button
-                      key={model.id}
-                      onClick={() => setSelectedModel(model.id)}
-                      className={`p-3 rounded-xl text-center transition-all ${
-                        selectedModel === model.id
-                          ? "bg-[var(--primary)] text-white"
-                          : "bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)]"
-                      }`}
-                    >
-                      <div className="font-medium text-sm">{model.name}</div>
-                      <div className={`text-xs mt-0.5 ${selectedModel === model.id ? "text-white/80" : "text-[var(--foreground-muted)]"}`}>
-                        {model.desc}
-                      </div>
-                    </button>
+                <div className="flex flex-col gap-2">
+                  {models.map((model) => (
+                    <div key={model.id} className="w-full">
+                      <button
+                        onClick={() => setSelectedModel(model.id)}
+                        className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
+                          selectedModel === model.id
+                            ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-sm"
+                            : "bg-[var(--background)] border-[var(--border)] hover:border-[var(--primary)] hover:bg-[var(--surface-hover)]"
+                        }`}
+                      >
+                        <div className="text-left">
+                          <div className="font-medium text-sm flex items-center gap-2">
+                            {model.name}
+                            {model.tier === "listening" && <Sparkles size={12} className={selectedModel === model.id ? "text-white" : "text-amber-500"} />}
+                          </div>
+                          <div className={`text-xs mt-0.5 ${selectedModel === model.id ? "text-white/80" : "text-[var(--foreground-muted)]"}`}>
+                            {model.price}
+                          </div>
+                        </div>
+                        {selectedModel === model.id && <Check size={16} />}
+                      </button>
+
+                      {/* Model Details - Expanded when selected */}
+                      {selectedModel === model.id && (model.description || (model.pros && model.pros.length > 0)) && (
+                        <div className="mt-2 p-3 bg-[var(--surface-hover)] rounded-lg border border-[var(--border)] text-xs">
+                          {model.description && (
+                            <p className="text-[var(--foreground)] font-medium mb-2 whitespace-pre-wrap">{model.description}</p>
+                          )}
+                          {model.pros && model.pros.length > 0 && (
+                            <div className="space-y-1.5">
+                              {model.pros.map((pro, idx) => (
+                                <div key={idx} className="flex items-start gap-2 text-[var(--foreground-muted)]">
+                                  <span className="mt-1 w-1 h-1 rounded-full bg-green-500 shrink-0" />
+                                  <span>{pro}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>

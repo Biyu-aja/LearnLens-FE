@@ -100,7 +100,7 @@ export default function LandingPage() {
           </div>
           
           <p className="text-xs sm:text-sm text-[var(--foreground-muted)]">
-            Free to use • No credit card required
+            Free to use • Optimized for papers, articles, and book chapters.
           </p>
         </div>
 
