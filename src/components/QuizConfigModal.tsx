@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Loader2, HelpCircle, Sparkles, Check, Wand2, Languages, BookOpen, Target } from "lucide-react";
-import { AIModel, authAPI } from "@/lib/api";
+import { X, Loader2, HelpCircle, Sparkles, Wand2, BookOpen, Target } from "lucide-react";
+import { AIModel, authAPI, CustomConfig } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { ModelSelector } from "./ModelSelector";
 
 interface QuizConfigModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export interface QuizConfig {
   model: string;
   materialIds: string[];
   customText: string;
+  customConfig?: CustomConfig;
 }
 
 // Prompt templates
@@ -46,13 +48,6 @@ const PROMPT_TEMPLATES = [
   },
 ];
 
-// Main 3 AI models
-const MAIN_MODELS = [
-  { id: "gemini-2.5-flash-lite", name: "Flash Lite", desc: "Fast & budget-friendly" },
-  { id: "gemini-2.5-flash", name: "Flash", desc: "Balanced performance" },
-  { id: "gemini-2.5-flash-thinking", name: "Flash Thinking", desc: "Best reasoning" },
-];
-
 export function QuizConfigModal({
   isOpen,
   onClose,
@@ -61,35 +56,42 @@ export function QuizConfigModal({
   currentMaterialTitle,
 }: QuizConfigModalProps) {
   const { user } = useAuth();
-  const [models, setModels] = useState<AIModel[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Config state
   const [questionCount, setQuestionCount] = useState(10);
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
-  const [selectedModel, setSelectedModel] = useState(user?.preferredModel || "gemini-2.5-flash-lite");
+  
+  // Model state
+  const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash-lite");
+  const [apiMode, setApiMode] = useState<"default" | "custom">("default");
+  
+  // Custom API state
+  const [customApiUrl, setCustomApiUrl] = useState("");
+  const [customApiKey, setCustomApiKey] = useState("");
+  const [customModel, setCustomModel] = useState("");
+  
   const [customPrompt, setCustomPrompt] = useState("");
 
   useEffect(() => {
     if (isOpen) {
-      loadModels();
+      if (user) {
+        setSelectedModel(user.preferredModel || "gemini-2.5-flash-lite");
+        
+        setCustomApiUrl(user.customApiUrl || "");
+        setCustomModel(user.customModel || "");
+        // We don't pre-fill apiKey for security unless user enters it, 
+        // but ModelSelector handles showing "Saved" if user.hasCustomApiKey is true.
+        
+        const hasActiveCustomApi = user.customApiUrl && (user.hasCustomApiKey || user.customModel);
+        setApiMode(hasActiveCustomApi ? "custom" : "default");
+        
+      }
       // Reset custom prompt
       setCustomPrompt("");
     }
-  }, [isOpen, currentMaterialId]);
-
-  const loadModels = async () => {
-    setIsLoading(true);
-    try {
-      const modelsRes = await authAPI.getModels();
-      setModels(modelsRes.models);
-    } catch (error) {
-      console.error("Failed to load models:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [isOpen, currentMaterialId, user]);
 
   // Add template text to custom prompt
   const addTemplate = (templateId: string) => {
@@ -107,13 +109,23 @@ export function QuizConfigModal({
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
-      await onGenerate({
+      const config: QuizConfig = {
         questionCount,
         difficulty,
         model: selectedModel,
         materialIds: [currentMaterialId], // Always use current material
         customText: customPrompt.trim(),
-      });
+      };
+
+      if (apiMode === "custom") {
+        config.customConfig = {
+          customApiUrl,
+          customApiKey, // might be empty if using saved key
+          customModel
+        };
+      }
+
+      await onGenerate(config);
       onClose();
     } catch (error) {
       console.error("Failed to generate quiz:", error);
@@ -211,27 +223,21 @@ export function QuizConfigModal({
               </div>
 
               {/* AI Model */}
-              <div>
-                <label className="block text-sm font-medium mb-2">AI Model</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {MAIN_MODELS.map((model) => (
-                    <button
-                      key={model.id}
-                      onClick={() => setSelectedModel(model.id)}
-                      className={`p-3 rounded-xl text-center transition-all ${
-                        selectedModel === model.id
-                          ? "bg-[var(--primary)] text-white"
-                          : "bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)]"
-                      }`}
-                    >
-                      <div className="font-medium text-sm">{model.name}</div>
-                      <div className={`text-xs mt-0.5 ${selectedModel === model.id ? "text-white/80" : "text-[var(--foreground-muted)]"}`}>
-                        {model.desc}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <ModelSelector
+                apiMode={apiMode}
+                onApiModeChange={setApiMode}
+                selectedModel={selectedModel}
+                onModelSelect={setSelectedModel}
+                customApiUrl={customApiUrl}
+                onCustomApiUrlChange={setCustomApiUrl}
+                customApiKey={customApiKey}
+                onCustomApiKeyChange={setCustomApiKey}
+                customModel={customModel}
+                onCustomModelChange={setCustomModel}
+                // We omit token sliders for quiz as it's not relevant or handled by backend fixed limits usually
+                user={user}
+                compact={true}
+              />
 
               {/* Prompt Templates */}
               <div>

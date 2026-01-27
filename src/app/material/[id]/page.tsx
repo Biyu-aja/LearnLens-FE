@@ -27,7 +27,7 @@ import { SettingsModal } from "@/components/SettingsModal";
 import { QuizConfigModal, QuizConfig } from "@/components/QuizConfigModal";
 import { SummaryConfigModal, SummaryConfig } from "@/components/SummaryConfigModal";
 import { MaterialOptionsModal } from "@/components/MaterialOptionsModal";
-import { materialsAPI, chatAPI, aiAPI, analyticsAPI, Material, MaterialSummary, Message, Quiz, GlossaryTerm, Flashcard } from "@/lib/api";
+import { materialsAPI, chatAPI, aiAPI, analyticsAPI, Material, MaterialSummary, Message, Quiz, GlossaryTerm, Flashcard, CustomConfig } from "@/lib/api";
 import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { PublishConfigModal } from "@/components/PublishConfigModal";
 import { AILanguage } from "@/components/MaterialOptionsModal";
@@ -485,10 +485,10 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
     await fetchMaterials();
   };
 
-  const handleGenerateGlossary = async () => {
+  const handleGenerateGlossary = async (config?: { model?: string; customConfig?: CustomConfig }) => {
     setIsGlossaryLoading(true);
     try {
-      const response = await aiAPI.generateGlossary(id, undefined, aiLanguage);
+      const response = await aiAPI.generateGlossary(id, config?.model, aiLanguage, config?.customConfig);
       setGlossary(response.glossary);
       setActiveTab("glossary");
     } catch (error) {
@@ -530,10 +530,10 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
     }
   };
 
-  const handleGenerateFlashcards = async () => {
+  const handleGenerateFlashcards = async (config?: { model?: string; customConfig?: CustomConfig }) => {
     setIsFlashcardsLoading(true);
     try {
-      const response = await aiAPI.generateFlashcards(id, 10, aiLanguage);
+      const response = await aiAPI.generateFlashcards(id, 10, aiLanguage, config?.model, config?.customConfig);
       setFlashcards(response.flashcards);
       setActiveTab("flashcards");
     } catch (error) {

@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { Book, Loader2, Trash2, ChevronDown, ChevronUp, Tag, Sparkles } from "lucide-react";
-import { GlossaryTerm } from "@/lib/api";
+import { GlossaryTerm, CustomConfig } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import { ModelSelector } from "./ModelSelector";
 
 interface GlossaryPanelProps {
   glossary: GlossaryTerm[] | null;
-  onGenerateGlossary: () => Promise<void>;
+  onGenerateGlossary: (config?: { model?: string; customConfig?: CustomConfig }) => Promise<void>;
   onDeleteGlossary: () => Promise<void>;
   isLoading: boolean;
 }
@@ -17,8 +19,54 @@ export function GlossaryPanel({
   onDeleteGlossary,
   isLoading,
 }: GlossaryPanelProps) {
+  const { user } = useAuth();
   const [expandedTerm, setExpandedTerm] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showConfig, setShowConfig] = useState(false);
+
+  // Model & Custom API state
+  const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash-lite");
+  const [apiMode, setApiMode] = useState<"default" | "custom">("default");
+  const [customApiUrl, setCustomApiUrl] = useState("");
+  const [customApiKey, setCustomApiKey] = useState("");
+  const [customModel, setCustomModel] = useState("");
+  // We can omit maxTokens/context for glossary or keep them if needed. 
+  // Glossary generation usually fits within standard limits, but custom APIs might need tweaking.
+  const [customMaxTokens, setCustomMaxTokens] = useState(2000);
+  const [customMaxContext, setCustomMaxContext] = useState(8000);
+
+  // Initialize state when user is loaded or showConfig opened
+  const initConfig = () => {
+    if (user) {
+      setSelectedModel(user.preferredModel || "gemini-2.5-flash-lite");
+      setCustomApiUrl(user.customApiUrl || "");
+      setCustomModel(user.customModel || "");
+      const hasActiveCustomApi = user.customApiUrl && (user.hasCustomApiKey || user.customModel);
+      setApiMode(hasActiveCustomApi ? "custom" : "default");
+    }
+  }
+
+  const handleGenerate = async () => {
+    const config: { model?: string; customConfig?: CustomConfig } = {};
+    
+    if (apiMode === "custom") {
+      config.model = customModel; // Although for custom, 'model' param in API might be ignored if customConfig is present, or used as customModel.
+                                  // BUT the backend ai.ts logic uses customConfig.customModel if present.
+                                  // The frontend api.ts generateGlossary takes (materialId, model, language, customConfig).
+      config.customConfig = {
+        customApiUrl,
+        customApiKey,
+        customModel,
+        customMaxTokens,
+        customMaxContext
+      };
+    } else {
+      config.model = selectedModel;
+    }
+
+    await onGenerateGlossary(config);
+    setShowConfig(false);
+  };
 
   // Filter glossary based on search
   const filteredGlossary = glossary?.filter(
@@ -155,26 +203,81 @@ export function GlossaryPanel({
             className="sm:w-12 sm:h-12 mx-auto text-[var(--foreground-muted)] mb-3 sm:mb-4"
           />
           <h3 className="text-base sm:text-lg font-medium mb-1 sm:mb-2">No glossary yet</h3>
-          <p className="text-xs sm:text-sm text-[var(--foreground-muted)] mb-4 sm:mb-6 px-4">
-            Generate a glossary of key terms from your learning material
-          </p>
-          <button
-            onClick={onGenerateGlossary}
-            disabled={isLoading}
-            className="inline-flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 bg-[var(--primary)] text-white rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-colors font-medium text-sm"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 size={16} className="sm:w-[18px] sm:h-[18px] animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Sparkles size={16} className="sm:w-[18px] sm:h-[18px]" />
-                Generate Glossary
-              </>
-            )}
-          </button>
+          
+          {!showConfig ? (
+            <>
+              <p className="text-xs sm:text-sm text-[var(--foreground-muted)] mb-4 sm:mb-6 px-4">
+                Generate a glossary of key terms from your learning material
+              </p>
+              <button
+                onClick={() => {
+                  initConfig();
+                  setShowConfig(true);
+                }}
+                disabled={isLoading}
+                className="inline-flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 bg-[var(--primary)] text-white rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-colors font-medium text-sm"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 size={16} className="sm:w-[18px] sm:h-[18px] animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} className="sm:w-[18px] sm:h-[18px]" />
+                    Generate Glossary
+                  </>
+                )}
+              </button>
+            </>
+          ) : (
+             <div className="max-w-md mx-auto px-4 text-left">
+                <ModelSelector
+                    apiMode={apiMode}
+                    onApiModeChange={setApiMode}
+                    selectedModel={selectedModel}
+                    onModelSelect={setSelectedModel}
+                    customApiUrl={customApiUrl}
+                    onCustomApiUrlChange={setCustomApiUrl}
+                    customApiKey={customApiKey}
+                    onCustomApiKeyChange={setCustomApiKey}
+                    customModel={customModel}
+                    onCustomModelChange={setCustomModel}
+                    customMaxTokens={customMaxTokens}
+                    onCustomMaxTokensChange={setCustomMaxTokens}
+                    customMaxContext={customMaxContext}
+                    onCustomMaxContextChange={setCustomMaxContext}
+                    user={user}
+                    compact={true}
+                />
+                
+                <div className="flex gap-2 mt-4">
+                    <button
+                        onClick={() => setShowConfig(false)}
+                        className="flex-1 px-4 py-2 border border-[var(--border)] rounded-xl hover:bg-[var(--surface-hover)] text-sm"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleGenerate}
+                        disabled={isLoading}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-colors font-medium text-sm"
+                    >
+                        {isLoading ? (
+                        <>
+                            <Loader2 size={16} className="animate-spin" />
+                            Generating...
+                        </>
+                        ) : (
+                        <>
+                            <Sparkles size={16} />
+                            Generate
+                        </>
+                        )}
+                    </button>
+                </div>
+             </div>
+          )}
         </div>
       )}
     </div>

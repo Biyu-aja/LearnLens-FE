@@ -16,7 +16,8 @@ import { Sidebar } from "@/components/Sidebar";
 import { MaterialUpload } from "@/components/MaterialUpload";
 import { SettingsModal } from "@/components/SettingsModal";
 import { QuizCard } from "@/components/QuizPanel";
-import { materialsAPI, aiAPI, authAPI, MaterialSummary, Quiz, AIModel } from "@/lib/api";
+import { materialsAPI, aiAPI, authAPI, MaterialSummary, Quiz, AIModel, CustomConfig } from "@/lib/api";
+import { ModelSelector } from "@/components/ModelSelector";
 
 // Supported AI languages
 const AI_LANGUAGES = [
@@ -61,14 +62,22 @@ export default function QuizPage() {
   const [config, setConfig] = useState<QuizConfig>({
     questionCount: 10,
     difficulty: "medium",
-    model: user?.preferredModel || "gemini-2.5-flash-lite",
+    model: "gemini-2.5-flash-lite", // default fallback
     language: "en",
   });
 
+  // Custom API state
+  const [apiMode, setApiMode] = useState<"default" | "custom">("default");
+  const [customApiUrl, setCustomApiUrl] = useState("");
+  const [customApiKey, setCustomApiKey] = useState("");
+  const [customModel, setCustomModel] = useState("");
+
   // Quiz state
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
-  const [score, setScore] = useState({ correct: 0, total: 0 });
-  const [showResults, setShowResults] = useState(false);
+  const [answers, setAnswers] = useState<Record<string, number | null>>({});
+  const [hints, setHints] = useState<Record<string, boolean>>({});
+  const [submitted, setSubmitted] = useState(false);
+  const [showResults, setShowResults] = useState(false); // To keep track if results are shown (though submitted also implies it)
 
   // Redirect to home if not logged in
   useEffect(() => {
@@ -77,10 +86,22 @@ export default function QuizPage() {
     }
   }, [user, authLoading, router]);
 
-  // Fetch data
+  // Fetch data & init config
   useEffect(() => {
     if (user) {
       loadData();
+      
+      // Init custom API config
+      setCustomApiUrl(user.customApiUrl || "");
+      setCustomModel(user.customModel || "");
+      const hasActiveCustomApi = user.customApiUrl && (user.hasCustomApiKey || user.customModel);
+      setApiMode(hasActiveCustomApi ? "custom" : "default");
+      
+      // Init model
+      setConfig(prev => ({ 
+        ...prev, 
+        model: user.preferredModel || "gemini-2.5-flash-lite" 
+      }));
     }
   }, [user]);
 
@@ -93,9 +114,6 @@ export default function QuizPage() {
       ]);
       setMaterials(materialsRes.materials);
       setModels(modelsRes.models);
-      if (user?.preferredModel) {
-        setConfig(prev => ({ ...prev, model: user.preferredModel! }));
-      }
     } catch (error) {
       console.error("Failed to load data:", error);
     } finally {
@@ -117,6 +135,33 @@ export default function QuizPage() {
     setSelectedMaterials([]);
   };
 
+  // Quiz Logic
+  const score = quizzes.reduce((acc, quiz) => {
+    return acc + (answers[quiz.id] === quiz.answer ? 1 : 0);
+  }, 0);
+  const total = quizzes.length;
+
+  const handleSelect = (quizId: string, optionIndex: number) => {
+    if (submitted) return;
+    setAnswers(prev => ({ ...prev, [quizId]: optionIndex }));
+  };
+
+  const toggleHint = (quizId: string) => {
+    setHints(prev => ({ ...prev, [quizId]: !prev[quizId] }));
+  };
+
+  const handleSubmit = () => {
+    setSubmitted(true);
+    setShowResults(true);
+  };
+
+  const handleReset = () => {
+    setAnswers({});
+    setHints({});
+    setSubmitted(false);
+    setShowResults(false);
+  };
+
   const handleGenerateQuiz = async () => {
     if (selectedMaterials.length === 0 && !customText.trim()) {
       alert("Please select at least one material or add custom text.");
@@ -125,14 +170,18 @@ export default function QuizPage() {
 
     setIsGenerating(true);
     setQuizzes([]);
-    setScore({ correct: 0, total: 0 });
-    setShowResults(false);
+    handleReset();
 
     try {
       // Use the first selected material as the primary ID for the API route
       const primaryMaterialId = selectedMaterials[0] || materials[0]?.id;
+      // Note: If no materials (only custom text) and no materials exist at all, this might fail.
+      // But user usually has materials if they are here, or uploaded one.
+      // If purely custom text without ANY material record in DB, we still need a material ID for the route /api/ai/:id/quiz
+      // This is a limitation of current route design. We assume at least one material exists.
+      
       if (!primaryMaterialId) {
-        alert("No materials available.");
+        alert("Please upload at least one material first to use as a context anchor.");
         return;
       }
 
@@ -143,6 +192,11 @@ export default function QuizPage() {
         materialIds: selectedMaterials,
         customText: customText.trim(),
         language: config.language,
+        customConfig: apiMode === "custom" ? {
+          customApiUrl,
+          customApiKey,
+          customModel
+        } : undefined
       });
       setQuizzes(response.quizzes);
     } catch (error) {
@@ -151,24 +205,6 @@ export default function QuizPage() {
     } finally {
       setIsGenerating(false);
     }
-  };
-
-  const handleAnswer = (isCorrect: boolean) => {
-    setScore((prev) => ({
-      correct: isCorrect ? prev.correct + 1 : prev.correct,
-      total: prev.total + 1,
-    }));
-
-    if (score.total + 1 === quizzes.length) {
-      setShowResults(true);
-    }
-  };
-
-  const handleReset = () => {
-    setScore({ correct: 0, total: 0 });
-    setShowResults(false);
-    // Reset individual quiz cards
-    setQuizzes([...quizzes]);
   };
 
   const handleUpload = async (data: { 
@@ -244,22 +280,6 @@ export default function QuizPage() {
     { value: "medium" as const, label: "Medium", desc: "Understanding" },
     { value: "hard" as const, label: "Hard", desc: "Analysis" },
   ];
-
-  // Group models by tier
-  const groupedModels = models.reduce((acc, model) => {
-    if (!acc[model.tier]) acc[model.tier] = [];
-    acc[model.tier].push(model);
-    return acc;
-  }, {} as Record<string, AIModel[]>);
-
-  const tierOrder = ["flash", "standard", "pro", "thinking", "premium"];
-  const tierLabels: Record<string, string> = {
-    flash: "⚡ Flash",
-    standard: "📊 Standard",
-    pro: "🚀 Pro",
-    thinking: "🧠 Thinking",
-    premium: "💎 Premium",
-  };
 
   return (
     <div className="min-h-screen flex">
@@ -425,61 +445,28 @@ export default function QuizPage() {
                   </div>
 
                   {/* Model */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">AI Model</label>
-                    <div className="bg-[var(--background)] border border-[var(--border)] rounded-xl max-h-40 overflow-y-auto">
-                      {tierOrder.map((tier) => {
-                        const tierModels = groupedModels[tier];
-                        if (!tierModels || tierModels.length === 0) return null;
-                        return (
-                          <div key={tier} className="p-2">
-                            <div className="text-xs font-medium text-[var(--foreground-muted)] mb-1 px-2">
-                              {tierLabels[tier]}
-                            </div>
-                            {tierModels.map((model) => (
-                              <button
-                                key={model.id}
-                                onClick={() => setConfig(prev => ({ ...prev, model: model.id }))}
-                                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
-                                  config.model === model.id
-                                    ? "bg-[var(--primary-light)] text-[var(--primary)]"
-                                    : "hover:bg-[var(--surface-hover)]"
-                                }`}
-                              >
-                                <span className="font-medium">{model.name}</span>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-[var(--foreground-muted)]">{model.price}</span>
-                                  {config.model === model.id && <Check size={14} />}
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        );
-                      })}
-                    </div>
+                  <div className="mb-6">
+                    <ModelSelector
+                      apiMode={apiMode}
+                      onApiModeChange={setApiMode}
+                      selectedModel={config.model}
+                      onModelSelect={(m) => setConfig(prev => ({ ...prev, model: m }))}
+                      customApiUrl={customApiUrl}
+                      onCustomApiUrlChange={setCustomApiUrl}
+                      customApiKey={customApiKey}
+                      onCustomApiKeyChange={setCustomApiKey}
+                      customModel={customModel}
+                      onCustomModelChange={setCustomModel}
+                      user={user}
+                      compact={true}
+                    />
                   </div>
 
                   {/* Language */}
                   <div className="mb-6">
                     <label className="block text-sm font-medium mb-2">Quiz Language</label>
                     <div className="grid grid-cols-5 gap-2">
-                      {AI_LANGUAGES.slice(0, 5).map((lang) => (
-                        <button
-                          key={lang.id}
-                          onClick={() => setConfig(prev => ({ ...prev, language: lang.id }))}
-                          className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all ${
-                            config.language === lang.id
-                              ? "bg-[var(--primary)] text-white"
-                              : "bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)]"
-                          }`}
-                        >
-                          <span className="text-lg">{lang.flag}</span>
-                          <span className="text-xs">{lang.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-5 gap-2 mt-2">
-                      {AI_LANGUAGES.slice(5).map((lang) => (
+                      {AI_LANGUAGES.map((lang) => (
                         <button
                           key={lang.id}
                           onClick={() => setConfig(prev => ({ ...prev, language: lang.id }))}
@@ -536,41 +523,18 @@ export default function QuizPage() {
                 </div>
 
                 {/* Score */}
-                {score.total > 0 && (
-                  <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 mb-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-[var(--foreground-muted)]">Progress</p>
-                        <p className="text-2xl font-bold">
-                          {score.correct}/{score.total}{" "}
-                          <span className="text-sm font-normal text-[var(--foreground-muted)]">
-                            ({Math.round((score.correct / score.total) * 100)}% correct)
-                          </span>
-                        </p>
-                      </div>
-                      <button
-                        onClick={handleReset}
-                        className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-hover)] text-sm"
-                      >
-                        Retry Quiz
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Results */}
-                {showResults && (
+                {submitted && (
                   <div className={`p-6 rounded-2xl mb-6 ${
-                    score.correct / score.total >= 0.7
+                    score / total >= 0.7
                       ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
                       : "bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800"
                   }`}>
                     <h3 className="text-xl font-bold mb-2">
-                      {score.correct / score.total >= 0.7 ? "🎉 Great Job!" : "📚 Keep Studying!"}
+                      {score / total >= 0.7 ? "🎉 Great Job!" : "📚 Keep Studying!"}
                     </h3>
                     <p className="text-[var(--foreground-muted)]">
-                      You scored {score.correct} out of {score.total} (
-                      {Math.round((score.correct / score.total) * 100)}%)
+                      You scored {score} out of {total} (
+                      {Math.round((score / total) * 100)}%)
                     </p>
                     <div className="flex gap-3 mt-4">
                       <button
@@ -596,10 +560,26 @@ export default function QuizPage() {
                       key={quiz.id}
                       quiz={quiz}
                       index={index}
-                      onAnswer={handleAnswer}
+                      selectedAnswer={answers[quiz.id] ?? null}
+                      revealed={submitted}
+                      showHint={hints[quiz.id] ?? false}
+                      onSelect={(optionIndex) => handleSelect(quiz.id, optionIndex)}
+                      onToggleHint={() => toggleHint(quiz.id)}
                     />
                   ))}
                 </div>
+                
+                {!submitted && quizzes.length > 0 && (
+                    <div className="mt-8 flex justify-center">
+                        <button
+                            onClick={handleSubmit}
+                            disabled={Object.keys(answers).length !== quizzes.length}
+                            className="bg-[var(--primary)] text-white px-8 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--primary-hover)] font-semibold shadow-lg transition-all"
+                        >
+                            Submit Quiz
+                        </button>
+                    </div>
+                )}
               </div>
             )}
           </div>

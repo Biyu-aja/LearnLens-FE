@@ -204,23 +204,6 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
-
-          {/* Quick tips */}
-          <div className="mt-12 sm:mt-16 p-4 sm:p-6 bg-gradient-to-r from-indigo-50 to-teal-50 dark:from-indigo-900/20 dark:to-teal-900/20 rounded-xl sm:rounded-2xl">
-            <div className="flex items-start gap-3 sm:gap-4">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center shrink-0">
-                <Sparkles size={18} className="sm:w-5 sm:h-5 text-indigo-500" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-sm sm:text-base mb-1">Pro Tips</h3>
-                <ul className="text-xs sm:text-sm text-[var(--foreground-muted)] space-y-0.5 sm:space-y-1">
-                  <li>• Upload PDF textbooks, articles, or notes for the best results</li>
-                  <li>• Use the chat to ask specific questions about your material</li>
-                  <li>• Generate quizzes before exams to test your understanding</li>
-                </ul>
-              </div>
-            </div>
-          </div>
         </div>
       </main>
 

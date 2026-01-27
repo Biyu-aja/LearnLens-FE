@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Loader2, FileText, Sparkles, Check, Languages, ListOrdered, BookOpen, Minimize2 } from "lucide-react";
-import { AIModel, authAPI } from "@/lib/api";
+import { X, Loader2, FileText, Sparkles, ListOrdered, BookOpen, Minimize2 } from "lucide-react";
+import { authAPI, CustomConfig } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { ModelSelector } from "./ModelSelector";
 
 interface SummaryConfigModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface SummaryConfigModalProps {
 export interface SummaryConfig {
   model: string;
   customText: string;
+  customConfig?: CustomConfig;
 }
 
 // Prompt templates for summary
@@ -42,13 +44,6 @@ const PROMPT_TEMPLATES = [
   },
 ];
 
-// Main 3 AI models
-const MAIN_MODELS = [
-  { id: "gemini-2.5-flash-lite", name: "Flash Lite", desc: "Fast & budget-friendly" },
-  { id: "gemini-2.5-flash", name: "Flash", desc: "Balanced performance" },
-  { id: "gemini-2.5-flash-thinking", name: "Flash Thinking", desc: "Best reasoning" },
-];
-
 export function SummaryConfigModal({
   isOpen,
   onClose,
@@ -56,32 +51,33 @@ export function SummaryConfigModal({
   currentMaterialTitle,
 }: SummaryConfigModalProps) {
   const { user } = useAuth();
-  const [models, setModels] = useState<AIModel[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Config state
-  const [selectedModel, setSelectedModel] = useState(user?.preferredModel || "gemini-2.5-flash-lite");
+  const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash-lite");
   const [customPrompt, setCustomPrompt] = useState("");
+  
+  // Custom API settings
+  const [apiMode, setApiMode] = useState<"default" | "custom">("default");
+  const [customApiUrl, setCustomApiUrl] = useState("");
+  const [customApiKey, setCustomApiKey] = useState("");
+  const [customModel, setCustomModel] = useState("");
 
   useEffect(() => {
     if (isOpen) {
-      loadModels();
+      if (user) {
+        setSelectedModel(user.preferredModel || "gemini-2.5-flash-lite");
+        setCustomApiUrl(user.customApiUrl || "");
+        setCustomModel(user.customModel || "");
+        // customApiKey logic handled by ModelSelector display, we just need to store edits
+        
+        const hasActiveCustomApi = user.customApiUrl && (user.hasCustomApiKey || user.customModel);
+        setApiMode(hasActiveCustomApi ? "custom" : "default");
+      }
       setCustomPrompt("");
     }
-  }, [isOpen]);
-
-  const loadModels = async () => {
-    setIsLoading(true);
-    try {
-      const modelsRes = await authAPI.getModels();
-      setModels(modelsRes.models);
-    } catch (error) {
-      console.error("Failed to load models:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [isOpen, user]);
 
   // Add template text to custom prompt
   const addTemplate = (templateId: string) => {
@@ -99,10 +95,20 @@ export function SummaryConfigModal({
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
-      await onGenerate({
+      const config: SummaryConfig = {
         model: selectedModel,
         customText: customPrompt.trim(),
-      });
+      };
+
+      if (apiMode === "custom") {
+        config.customConfig = {
+          customApiUrl,
+          customApiKey,
+          customModel
+        };
+      }
+
+      await onGenerate(config);
       onClose();
     } catch (error) {
       console.error("Failed to generate summary:", error);
@@ -150,53 +156,20 @@ export function SummaryConfigModal({
           ) : (
             <>
               {/* AI Model */}
-              <div>
-                <label className="block text-sm font-medium mb-2">AI Model</label>
-                <div className="flex flex-col gap-2">
-                  {models.map((model) => (
-                    <div key={model.id} className="w-full">
-                      <button
-                        onClick={() => setSelectedModel(model.id)}
-                        className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
-                          selectedModel === model.id
-                            ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-sm"
-                            : "bg-[var(--background)] border-[var(--border)] hover:border-[var(--primary)] hover:bg-[var(--surface-hover)]"
-                        }`}
-                      >
-                        <div className="text-left">
-                          <div className="font-medium text-sm flex items-center gap-2">
-                            {model.name}
-                            {model.tier === "listening" && <Sparkles size={12} className={selectedModel === model.id ? "text-white" : "text-amber-500"} />}
-                          </div>
-                          <div className={`text-xs mt-0.5 ${selectedModel === model.id ? "text-white/80" : "text-[var(--foreground-muted)]"}`}>
-                            {model.price}
-                          </div>
-                        </div>
-                        {selectedModel === model.id && <Check size={16} />}
-                      </button>
-
-                      {/* Model Details - Expanded when selected */}
-                      {selectedModel === model.id && (model.description || (model.pros && model.pros.length > 0)) && (
-                        <div className="mt-2 p-3 bg-[var(--surface-hover)] rounded-lg border border-[var(--border)] text-xs">
-                          {model.description && (
-                            <p className="text-[var(--foreground)] font-medium mb-2 whitespace-pre-wrap">{model.description}</p>
-                          )}
-                          {model.pros && model.pros.length > 0 && (
-                            <div className="space-y-1.5">
-                              {model.pros.map((pro, idx) => (
-                                <div key={idx} className="flex items-start gap-2 text-[var(--foreground-muted)]">
-                                  <span className="mt-1 w-1 h-1 rounded-full bg-green-500 shrink-0" />
-                                  <span>{pro}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <ModelSelector
+                apiMode={apiMode}
+                onApiModeChange={setApiMode}
+                selectedModel={selectedModel}
+                onModelSelect={setSelectedModel}
+                customApiUrl={customApiUrl}
+                onCustomApiUrlChange={setCustomApiUrl}
+                customApiKey={customApiKey}
+                onCustomApiKeyChange={setCustomApiKey}
+                customModel={customModel}
+                onCustomModelChange={setCustomModel}
+                user={user}
+                compact={true}
+              />
 
               {/* Prompt Templates */}
               <div>

@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Layers, Loader2, Trash2, Sparkles, RotateCcw, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
-import { Flashcard } from "@/lib/api";
+import { Layers, Loader2, Trash2, Sparkles, RotateCcw, ChevronLeft, ChevronRight, RefreshCw, X } from "lucide-react";
+import { Flashcard, CustomConfig } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import { ModelSelector } from "./ModelSelector";
 
 interface FlashcardPanelProps {
   flashcards: Flashcard[] | null;
-  onGenerateFlashcards: () => Promise<void>;
+  onGenerateFlashcards: (config?: { model?: string; customConfig?: CustomConfig }) => Promise<void>;
   onDeleteFlashcards: () => Promise<void>;
   isLoading: boolean;
   materialId: string;
@@ -18,10 +20,52 @@ export function FlashcardPanel({
   onDeleteFlashcards,
   isLoading,
 }: FlashcardPanelProps) {
+  const { user } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [studyMode, setStudyMode] = useState(false);
   const [knownCards, setKnownCards] = useState<Set<number>>(new Set());
+  
+  // Config state
+  const [showConfig, setShowConfig] = useState(false);
+  
+  // Model & Custom API state
+  const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash-lite");
+  const [apiMode, setApiMode] = useState<"default" | "custom">("default");
+  const [customApiUrl, setCustomApiUrl] = useState("");
+  const [customApiKey, setCustomApiKey] = useState("");
+  const [customModel, setCustomModel] = useState("");
+  const [customMaxTokens, setCustomMaxTokens] = useState(2000);
+  const [customMaxContext, setCustomMaxContext] = useState(8000);
+
+  const initConfig = () => {
+    if (user) {
+      setSelectedModel(user.preferredModel || "gemini-2.5-flash-lite");
+      setCustomApiUrl(user.customApiUrl || "");
+      setCustomModel(user.customModel || "");
+      const hasActiveCustomApi = user.customApiUrl && (user.hasCustomApiKey || user.customModel);
+      setApiMode(hasActiveCustomApi ? "custom" : "default");
+    }
+  }
+
+  const handleGenerate = async () => {
+    const config: { model?: string; customConfig?: CustomConfig } = {};
+    
+    if (apiMode === "custom") {
+      config.model = customModel;
+      config.customConfig = {
+        customApiUrl,
+        customApiKey,
+        customModel,
+        customMaxTokens,
+        customMaxContext
+      };
+    } else {
+      config.model = selectedModel;
+    }
+
+    await onGenerateFlashcards(config);
+    setShowConfig(false);
+  };
 
   const handleNext = () => {
     if (flashcards && currentIndex < flashcards.length - 1) {
@@ -61,6 +105,76 @@ export function FlashcardPanel({
     }
   };
 
+  // Config View (Overlay)
+  if (showConfig) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-[var(--background)]">
+        <div className="w-full max-w-md bg-[var(--surface)] p-6 rounded-2xl border border-[var(--border)] shadow-xl animate-in zoom-in-95">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Sparkles className="text-[var(--primary)]" size={18} />
+              Flashcard Settings
+            </h3>
+            <button 
+              onClick={() => setShowConfig(false)}
+              className="p-1 hover:bg-[var(--surface-hover)] rounded-lg"
+            >
+              <X size={18} />
+            </button>
+          </div>
+          
+          <div className="overflow-y-auto max-h-[60vh] -mx-2 px-2">
+            <ModelSelector
+                apiMode={apiMode}
+                onApiModeChange={setApiMode}
+                selectedModel={selectedModel}
+                onModelSelect={setSelectedModel}
+                customApiUrl={customApiUrl}
+                onCustomApiUrlChange={setCustomApiUrl}
+                customApiKey={customApiKey}
+                onCustomApiKeyChange={setCustomApiKey}
+                customModel={customModel}
+                onCustomModelChange={setCustomModel}
+                customMaxTokens={customMaxTokens}
+                onCustomMaxTokensChange={setCustomMaxTokens}
+                customMaxContext={customMaxContext}
+                onCustomMaxContextChange={setCustomMaxContext}
+                user={user}
+                compact={true}
+            />
+          </div>
+
+          <div className="flex gap-2 mt-6">
+            <button
+                onClick={() => setShowConfig(false)}
+                className="flex-1 px-4 py-2 border border-[var(--border)] rounded-xl hover:bg-[var(--surface-hover)] text-sm transition-colors"
+                disabled={isLoading}
+            >
+                Cancel
+            </button>
+            <button
+                onClick={handleGenerate}
+                disabled={isLoading}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-colors font-medium text-sm"
+            >
+                {isLoading ? (
+                <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Generating...
+                </>
+                ) : (
+                <>
+                    <Sparkles size={16} />
+                    Generate
+                </>
+                )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Empty state
   if (!flashcards || flashcards.length === 0) {
     return (
@@ -73,21 +187,15 @@ export function FlashcardPanel({
           Generate interactive flashcards from your material to help memorize key concepts and terms.
         </p>
         <button
-          onClick={onGenerateFlashcards}
+          onClick={() => {
+            initConfig();
+            setShowConfig(true);
+          }}
           disabled={isLoading}
           className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl hover:from-cyan-600 hover:to-blue-600 transition-all disabled:opacity-50 font-medium shadow-lg"
         >
-          {isLoading ? (
-            <>
-              <Loader2 size={20} className="animate-spin" />
-              Generating Flashcards...
-            </>
-          ) : (
-            <>
-              <Sparkles size={20} />
-              Generate Flashcards
-            </>
-          )}
+          <Sparkles size={20} />
+          Generate Flashcards
         </button>
       </div>
     );
@@ -229,7 +337,10 @@ export function FlashcardPanel({
         {/* Regenerate option */}
         <div className="pt-4 border-t border-[var(--border)] flex justify-center">
           <button
-            onClick={onGenerateFlashcards}
+            onClick={() => {
+              initConfig();
+              setShowConfig(true);
+            }}
             disabled={isLoading}
             className={`flex items-center gap-2 px-5 py-2.5 text-sm border rounded-xl transition-colors ${
               isLoading 

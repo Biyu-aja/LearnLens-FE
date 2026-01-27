@@ -146,7 +146,7 @@ export const materialsAPI = {
         });
     },
 
-    generateSummary: (id: string, config?: { model?: string; customText?: string; language?: string }) =>
+    generateSummary: (id: string, config?: { model?: string; customText?: string; language?: string; customConfig?: CustomConfig }) =>
         fetchAPI<{ success: boolean; summary: string }>(`/api/materials/${id}/summary`, {
             method: "POST",
             body: JSON.stringify(config || {}),
@@ -337,6 +337,7 @@ export const aiAPI = {
         materialIds?: string[];
         customText?: string;
         language?: string;
+        customConfig?: CustomConfig;
     } = {}) =>
         fetchAPI<{ success: boolean; quizzes: Quiz[] }>(`/api/ai/${materialId}/quiz`, {
             method: "POST",
@@ -347,10 +348,10 @@ export const aiAPI = {
         fetchAPI<{ success: boolean; quizzes: Quiz[] }>(`/api/ai/${materialId}/quiz`),
 
     // Glossary
-    generateGlossary: (materialId: string, model?: string, language: string = "en") =>
+    generateGlossary: (materialId: string, model?: string, language: string = "en", customConfig?: CustomConfig) =>
         fetchAPI<{ success: boolean; glossary: GlossaryTerm[] }>(`/api/ai/${materialId}/glossary`, {
             method: "POST",
-            body: JSON.stringify({ model, language }),
+            body: JSON.stringify({ model, language, customConfig }),
         }),
 
     getGlossary: (materialId: string) =>
@@ -375,10 +376,10 @@ export const aiAPI = {
         }),
 
     // Flashcards
-    generateFlashcards: (materialId: string, count: number = 10, language: string = "en") =>
+    generateFlashcards: (materialId: string, count: number = 10, language: string = "en", model?: string, customConfig?: CustomConfig) =>
         fetchAPI<{ success: boolean; flashcards: Flashcard[] }>(`/api/ai/${materialId}/flashcards`, {
             method: "POST",
-            body: JSON.stringify({ count, language }),
+            body: JSON.stringify({ count, language, model, customConfig }),
         }),
 
     getFlashcards: (materialId: string) =>
@@ -404,6 +405,14 @@ export interface User {
     customMaxTokens?: number;
     customMaxContext?: number;
     hasCustomApiKey?: boolean;
+}
+
+export interface CustomConfig {
+    customApiUrl?: string;
+    customApiKey?: string;
+    customModel?: string;
+    customMaxTokens?: number;
+    customMaxContext?: number;
 }
 
 export interface AIModel {
