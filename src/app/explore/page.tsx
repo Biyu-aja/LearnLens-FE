@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Search, Heart, GitFork, Globe, BookOpen, Clock, TrendingUp } from "lucide-react";
+import { Loader2, Search, Heart, ThumbsDown, GitFork, Globe, BookOpen, Clock, TrendingUp, MessageSquare } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Sidebar } from "@/components/Sidebar";
 import { exploreAPI, ExploreMaterial, materialsAPI, MaterialSummary } from "@/lib/api";
@@ -72,12 +72,40 @@ export default function ExplorePage() {
     // Optimistic update
     setPublicMaterials(prev => prev.map(m => 
         m.id === id 
-            ? { ...m, isLiked: !currentLiked, likeCount: currentLiked ? m.likeCount - 1 : m.likeCount + 1 }
+            ? { 
+                ...m, 
+                isLiked: !currentLiked, 
+                likeCount: currentLiked ? m.likeCount - 1 : m.likeCount + 1,
+                // If liking, remove dislike
+                ...( !currentLiked ? { isDisliked: false, dislikeCount: m.isDisliked ? m.dislikeCount - 1 : m.dislikeCount } : {} )
+              }
             : m
     ));
 
     try {
         await exploreAPI.toggleLike(id);
+    } catch (error) { // eslint-disable-line @typescript-eslint/no-unused-vars
+        // Revert on error
+        fetchPublicMaterials();
+    }
+  };
+
+  const handleDislike = async (id: string, currentDisliked: boolean) => {
+    // Optimistic update
+    setPublicMaterials(prev => prev.map(m => 
+        m.id === id 
+            ? { 
+                ...m, 
+                isDisliked: !currentDisliked, 
+                dislikeCount: currentDisliked ? m.dislikeCount - 1 : m.dislikeCount + 1,
+                // If disliking, remove like
+                ...( !currentDisliked ? { isLiked: false, likeCount: m.isLiked ? m.likeCount - 1 : m.likeCount } : {} )
+              }
+            : m
+    ));
+
+    try {
+        await exploreAPI.toggleDislike(id);
     } catch (error) { // eslint-disable-line @typescript-eslint/no-unused-vars
         // Revert on error
         fetchPublicMaterials();
@@ -253,6 +281,20 @@ export default function ExplorePage() {
                                     <Heart size={16} fill={material.isLiked ? "currentColor" : "none"} />
                                     {material.likeCount}
                                 </button>
+                                <button 
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDislike(material.id, material.isDisliked || false);
+                                    }}
+                                    className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${material.isDisliked ? 'text-orange-500' : 'text-gray-500 hover:text-orange-500'}`}
+                                >
+                                    <ThumbsDown size={16} fill={material.isDisliked ? "currentColor" : "none"} />
+                                    {material.dislikeCount || 0}
+                                </button>
+                                <span className="flex items-center gap-1.5 text-sm text-gray-500">
+                                    <MessageSquare size={16} />
+                                    {material.commentCount || 0}
+                                </span>
                                 <span className="flex items-center gap-1.5 text-sm text-gray-500">
                                     <GitFork size={16} />
                                     {material.forkCount}
@@ -293,6 +335,7 @@ export default function ExplorePage() {
             onClose={() => setSelectedMaterialId(null)}
             onFork={handleFork}
             onLike={handleLike}
+            onDislike={handleDislike}
             onUpdate={fetchPublicMaterials}
         />
       )}

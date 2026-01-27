@@ -695,6 +695,17 @@ export const chatSessionsAPI = {
 };
 
 // Explore API
+export interface ExploreComment {
+    id: string;
+    content: string;
+    createdAt: string;
+    user: {
+        id: string;
+        name: string | null;
+        image: string | null;
+    };
+}
+
 export interface ExploreMaterial extends MaterialSummary {
     user: {
         id: string;
@@ -703,7 +714,10 @@ export interface ExploreMaterial extends MaterialSummary {
     };
     originalMaterialId?: string | null;
     isLiked: boolean;
+    isDisliked: boolean;
     likeCount: number;
+    dislikeCount: number;
+    commentCount: number;
     forkCount: number;
     description?: string;
     isPublic?: boolean;
@@ -718,6 +732,21 @@ export const exploreAPI = {
 
     toggleLike: (id: string) =>
         fetchAPI<{ success: boolean; liked: boolean }>(`/api/explore/${id}/like`, { method: "POST" }),
+
+    toggleDislike: (id: string) =>
+        fetchAPI<{ success: boolean; disliked: boolean }>(`/api/explore/${id}/dislike`, { method: "POST" }),
+
+    getComments: (id: string) =>
+        fetchAPI<{ success: boolean; comments: ExploreComment[] }>(`/api/explore/${id}/comments`),
+
+    addComment: (id: string, content: string) =>
+        fetchAPI<{ success: boolean; comment: ExploreComment }>(`/api/explore/${id}/comments`, {
+            method: "POST",
+            body: JSON.stringify({ content })
+        }),
+
+    deleteComment: (commentId: string) =>
+        fetchAPI<{ success: boolean }>(`/api/explore/comments/${commentId}`, { method: "DELETE" }),
 
     fork: (id: string) =>
         fetchAPI<{ success: boolean; material: Material }>(`/api/explore/${id}/fork`, { method: "POST" }),

@@ -183,6 +183,14 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
             prev.map((m) => (m.id === streamingMsgId ? assistantMessage : m))
           );
           setIsChatLoading(false);
+
+          // If research mode, update local material content
+          if (material?.type === "research") {
+            const newContent = `\n\nUser: ${message}\nAssistant: ${assistantMessage.content}`;
+            setMaterial((prev) => 
+              prev ? { ...prev, content: (prev.content || "") + newContent } : null
+            );
+          }
         },
         // On error
         (error: string) => {
