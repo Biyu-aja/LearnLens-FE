@@ -36,6 +36,9 @@ export function ExploreDetailModal({
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isContentExpanded, setIsContentExpanded] = useState(false);
+  
+  // Tab State
+  const [activeTab, setActiveTab] = useState<'content' | 'comments'>('content');
 
   // Fetch full details when modal opens
   useEffect(() => {
@@ -261,10 +264,10 @@ export function ExploreDetailModal({
                 </button>
                 <div className="w-px h-8 bg-[var(--border)]" />
                 <button 
-                  onClick={() => document.getElementById('comments-section-modal')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800 p-1.5 rounded-lg transition-colors cursor-pointer"
+                  onClick={() => setActiveTab('comments')}
+                  className={`flex items-center gap-2 p-1.5 rounded-lg transition-colors cursor-pointer ${activeTab === 'comments' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400' : 'hover:bg-gray-50 dark:hover:bg-gray-800'}`}
                 >
-                   <MessageSquare size={18} className="text-[var(--foreground-muted)]" />
+                   <MessageSquare size={18} className={activeTab === 'comments' ? "text-indigo-500" : "text-[var(--foreground-muted)]"} />
                    <span className="font-semibold">{material.commentCount || 0}</span>
                    <span className="text-sm text-[var(--foreground-muted)]">Comments</span>
                 </button>
@@ -276,60 +279,82 @@ export function ExploreDetailModal({
                 </div>
               </div>
 
-              {/* Description */}
-              {(material.description || isEditing) && (
-                <div className="bg-[var(--background)] p-6 rounded-xl border border-[var(--border)] text-[var(--foreground)] leading-relaxed">
-                  <h3 className="text-sm font-semibold text-[var(--foreground-muted)] uppercase tracking-wide mb-3">About this material</h3>
-                  {isEditing ? (
-                    <textarea
-                      value={editDescription}
-                      onChange={(e) => setEditDescription(e.target.value)}
-                      className="w-full min-h-[100px] bg-[var(--surface)] border border-[var(--border)] rounded-lg p-3 focus:ring-2 focus:ring-[var(--primary)] outline-none resize-y"
-                      placeholder="Add a description..."
-                    />
-                  ) : (
-                    <p className="whitespace-pre-line">{material.description}</p>
-                  )}
+              {/* Tabs Content */}
+              <div className="min-h-[300px]">
+                {/* Tab Switcher */}
+                <div className="flex border-b border-[var(--border)] mb-6">
+                  <button
+                    onClick={() => setActiveTab('content')}
+                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'content' ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--foreground-muted)] hover:text-[var(--foreground)]'}`}
+                  >
+                    Content & Details
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('comments')}
+                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'comments' ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--foreground-muted)] hover:text-[var(--foreground)]'}`}
+                  >
+                    Discussion
+                  </button>
                 </div>
-              )}
 
-              {/* Preview Content (if available) */}
-              {(material as any).content && (
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <FileText size={18} className="text-teal-500" />
-                    Content Preview
-                  </h3>
-                  <div className={`bg-[var(--background)] p-6 rounded-xl border border-[var(--border)] font-mono text-sm leading-relaxed overflow-hidden relative transition-all duration-500 ${isContentExpanded ? 'max-h-full' : 'max-h-[300px]'}`}>
-                    <pre className="whitespace-pre-wrap font-sans">{(material as any).content}</pre>
-                    
-                    {!isContentExpanded && (
-                      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[var(--background)] to-transparent flex items-end justify-center pb-8 pt-20">
-                          <button 
-                              onClick={() => setIsContentExpanded(true)}
-                              className="bg-[var(--surface)] px-6 py-2 rounded-full border border-[var(--border)] text-sm font-medium text-[var(--foreground)] shadow-sm hover:bg-[var(--surface-hover)] transition-colors"
-                          >
-                              Show Full Content
-                          </button>
+                {activeTab === 'content' ? (
+                  <div className="space-y-8">
+                     {/* Description */}
+                    {(material.description || isEditing) && (
+                      <div className="bg-[var(--background)] p-6 rounded-xl border border-[var(--border)] text-[var(--foreground)] leading-relaxed">
+                        <h3 className="text-sm font-semibold text-[var(--foreground-muted)] uppercase tracking-wide mb-3">About this material</h3>
+                        {isEditing ? (
+                          <textarea
+                            value={editDescription}
+                            onChange={(e) => setEditDescription(e.target.value)}
+                            className="w-full min-h-[100px] bg-[var(--surface)] border border-[var(--border)] rounded-lg p-3 focus:ring-2 focus:ring-[var(--primary)] outline-none resize-y"
+                            placeholder="Add a description..."
+                          />
+                        ) : (
+                          <p className="whitespace-pre-line">{material.description}</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Preview Content (if available) */}
+                    {(material as any).content && (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <FileText size={18} className="text-teal-500" />
+                          Content Preview
+                        </h3>
+                        <div className={`bg-background p-6 rounded-xl border border-border font-mono text-sm leading-relaxed overflow-hidden relative transition-all duration-500 ${isContentExpanded ? 'max-h-full' : 'max-h-[300px]'}`}>
+                          <pre className="whitespace-pre-wrap font-sans">{(material as any).content}</pre>
+                          
+                          {!isContentExpanded && (
+                            <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background to-transparent flex items-end justify-center pb-8 pt-20">
+                                <button 
+                                    onClick={() => setIsContentExpanded(true)}
+                                    className="bg-surface px-6 py-2 rounded-full border border-border text-sm font-medium text-foreground shadow-sm hover:bg-surface-hover transition-colors"
+                                >
+                                    Show Full Content
+                                </button>
+                            </div>
+                          )}
+                        </div>
+                         {isContentExpanded && (
+                             <div className="flex justify-center mt-4">
+                                <button 
+                                    onClick={() => setIsContentExpanded(false)}
+                                    className="text-sm text-foreground-muted hover:text-primary underline"
+                                >
+                                    Show Less
+                                </button>
+                             </div>
+                         )}
                       </div>
                     )}
                   </div>
-                   {isContentExpanded && (
-                       <div className="flex justify-center mt-4">
-                          <button 
-                              onClick={() => setIsContentExpanded(false)}
-                              className="text-sm text-[var(--foreground-muted)] hover:text-[var(--primary)] underline"
-                          >
-                              Show Less
-                          </button>
-                       </div>
-                   )}
-                </div>
-              )}
-
-              {/* Comments Section */}
-              <div id="comments-section-modal" className="pt-8 border-t border-[var(--border)]">
-                  <CommentsSection materialId={material.id} />
+                ) : (
+                  <div>
+                    <CommentsSection materialId={material.id} />
+                  </div>
+                )}
               </div>
 
             </div>

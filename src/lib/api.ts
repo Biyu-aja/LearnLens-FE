@@ -704,6 +704,8 @@ export interface ExploreComment {
         name: string | null;
         image: string | null;
     };
+    replies?: ExploreComment[];
+    parentId?: string | null;
 }
 
 export interface ExploreMaterial extends MaterialSummary {
@@ -739,10 +741,10 @@ export const exploreAPI = {
     getComments: (id: string) =>
         fetchAPI<{ success: boolean; comments: ExploreComment[] }>(`/api/explore/${id}/comments`),
 
-    addComment: (id: string, content: string) =>
+    addComment: (id: string, content: string, parentId?: string) =>
         fetchAPI<{ success: boolean; comment: ExploreComment }>(`/api/explore/${id}/comments`, {
             method: "POST",
-            body: JSON.stringify({ content })
+            body: JSON.stringify({ content, parentId })
         }),
 
     deleteComment: (commentId: string) =>
