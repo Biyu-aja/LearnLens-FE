@@ -666,9 +666,23 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
     setChatInitialInput(`Help me learn this topic from my study plan:\n\n${task}\n\nPlease provide a clear explanation and some examples.`);
   };
 
-  const handleQuizTask = (task: string) => {
-    setActiveTab("chat");
-    setChatInitialInput(`Create a short quiz for this task:\n\n${task}\n\nPlease provide 3 multiple choice questions to test my understanding.`);
+  const handleQuizTask = async (task: string) => {
+    // Generate quiz directly in Quiz Panel with custom instruction
+    setIsQuizLoading(true);
+    setActiveTab("quiz");
+    try {
+      const response = await aiAPI.generateQuiz(id, {
+        count: 3,
+        difficulty: "medium",
+        customText: `Focus only on this specific study task: "${task}". Generate questions to verify understanding of this exact topic.`,
+        language: aiLanguage,
+      });
+      setQuizzes(response.quizzes);
+    } catch (error) {
+      console.error("Failed to generate quiz for task:", error);
+    } finally {
+      setIsQuizLoading(false);
+    }
   };
 
   return (

@@ -420,6 +420,32 @@ export const aiAPI = {
             method: "PATCH",
             body: JSON.stringify({ isCompleted }),
         }),
+
+    // Task Verification
+    generateTaskQuestion: (taskId: string, language: string = "en") =>
+        fetchAPI<{
+            success: boolean;
+            question: string;
+            description?: string;
+            taskId: string;
+            task: string;
+        }>(`/api/ai/task/${taskId}/question`, {
+            method: "POST",
+            body: JSON.stringify({ language }),
+        }),
+
+    evaluateTaskAnswer: (taskId: string, question: string, answer: string, language: string = "en") =>
+        fetchAPI<{
+            success: boolean;
+            passed: boolean;
+            score: number;
+            feedback: string;
+            correctAnswer?: string;
+            taskCompleted: boolean;
+        }>(`/api/ai/task/${taskId}/evaluate`, {
+            method: "POST",
+            body: JSON.stringify({ question, answer, language }),
+        }),
 };
 
 // Types
