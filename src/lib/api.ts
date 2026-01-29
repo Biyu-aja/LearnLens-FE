@@ -389,6 +389,37 @@ export const aiAPI = {
         fetchAPI<{ success: boolean }>(`/api/ai/${materialId}/flashcards`, {
             method: "DELETE",
         }),
+
+    // Mind Map
+    generateMindMap: (materialId: string, language: string = "en", model?: string, customConfig?: CustomConfig) =>
+        fetchAPI<{ success: boolean; mindMap: MindMapData }>(`/api/ai/${materialId}/mindmap`, {
+            method: "POST",
+            body: JSON.stringify({ language, model, customConfig }),
+        }),
+
+    getMindMap: (materialId: string) =>
+        fetchAPI<{ success: boolean; mindMap: MindMapData }>(`/api/ai/${materialId}/mindmap`),
+
+    deleteMindMap: (materialId: string) =>
+        fetchAPI<{ success: boolean }>(`/api/ai/${materialId}/mindmap`, {
+            method: "DELETE",
+        }),
+
+    // Study Plan
+    generateStudyPlan: (materialId: string, language: string = "en", model?: string, customConfig?: CustomConfig, focus?: string) =>
+        fetchAPI<{ success: boolean; plan: StudyPlan }>(`/api/ai/${materialId}/study-plan`, {
+            method: "POST",
+            body: JSON.stringify({ language, model, customConfig, focus }),
+        }),
+
+    getStudyPlan: (materialId: string) =>
+        fetchAPI<{ success: boolean; plan: StudyPlan }>(`/api/ai/${materialId}/study-plan`),
+
+    updateStudyTask: (taskId: string, isCompleted: boolean) =>
+        fetchAPI<{ success: boolean; task: StudyTask }>(`/api/ai/study-plan/task/${taskId}`, {
+            method: "PATCH",
+            body: JSON.stringify({ isCompleted }),
+        }),
 };
 
 // Types
@@ -481,6 +512,40 @@ export interface Flashcard {
     front: string;
     back: string;
     category?: string;
+}
+
+export interface MindMapNode {
+    id: string;
+    label: string;
+    type?: string;
+}
+
+export interface MindMapEdge {
+    id: string;
+    source: string;
+    target: string;
+    label?: string;
+}
+
+export interface MindMapData {
+    nodes: MindMapNode[];
+    edges: MindMapEdge[];
+}
+
+export interface StudyTask {
+    id: string;
+    day: number;
+    task: string;
+    description: string;
+    isCompleted: boolean;
+}
+
+export interface StudyPlan {
+    id: string;
+    materialId: string;
+    tasks: StudyTask[];
+    createdAt: string;
+    updatedAt: string;
 }
 
 // Analytics Types

@@ -16,6 +16,7 @@ interface ChatPanelProps {
   onClearHistory: () => Promise<void>;
   onDeleteMessage?: (messageId: string) => Promise<void>;
   onRegenerateFromMessage?: (messageIndex: number, userMessage: string) => Promise<void>;
+  onRewind?: (messageId: string) => Promise<void>;
   isLoading: boolean;
   onStopGeneration?: () => void;
   onEditMaterial?: () => void;
@@ -35,6 +36,7 @@ interface ChatPanelProps {
   hasFlashcards?: boolean;
   language?: string;
   onLanguageChange?: (lang: string) => void;
+  initialInput?: string;
 }
 
 export function ChatPanel({ 
@@ -44,6 +46,7 @@ export function ChatPanel({
   onClearHistory,
   onDeleteMessage,
   onRegenerateFromMessage,
+  onRewind,
   isLoading,
   onStopGeneration,
   onEditMaterial,
@@ -61,15 +64,23 @@ export function ChatPanel({
   hasQuiz,
   hasGlossary,
   hasFlashcards,
-  language = "id",
-  onLanguageChange
+  language = "en",
+  onLanguageChange,
+  initialInput
 }: ChatPanelProps) {
   const { user } = useAuth();
-  const { settings } = useSettings();
-  const [input, setInput] = useState("");
+  const { settings, config } = useSettings();
+  const [input, setInput] = useState(initialInput || "");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (initialInput) {
+      setInput(initialInput);
+      inputRef.current?.focus();
+    }
+  }, [initialInput]);
 
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
@@ -258,6 +269,23 @@ export function ChatPanel({
     setContextMenu(null);
   };
 
+  const handleEditMessage = async (messageId: string, content: string) => {
+    if (!onRewind || !messageId) return;
+    
+    setInput(content);
+    // Focus after a brief delay to ensure state update
+    setTimeout(() => {
+        if (inputRef.current) {
+            inputRef.current.focus();
+            // Move cursor to end
+            inputRef.current.selectionStart = inputRef.current.value.length;
+            inputRef.current.selectionEnd = inputRef.current.value.length;
+        }
+    }, 0);
+    
+    await onRewind(messageId);
+  };
+
   const currentModelName = user?.preferredModel 
     ? (user.preferredModel === "claude-4.5-sonnet" ? "Claude 4.5 Sonnet" : 
        user.preferredModel.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase()))
@@ -399,7 +427,7 @@ export function ChatPanel({
               return (
                 <div
                   key={message.id || index}
-                  className="fade-in mb-3"
+                  className="fade-in mb-3 group"
                   onClick={(e) => handleMessageClick(e, message, index)}
                   onContextMenu={(e) => handleMessageClick(e, message, index)}
                   onTouchStart={() => handleTouchStart(message, index)}
@@ -414,7 +442,7 @@ export function ChatPanel({
                     }`}
                     style={{ borderLeftWidth: '3px' }}
                   >
-                    <div className={`text-md font-bold mb-1 ${
+                    <div className={`text-md font-bold mb-1 flex items-center gap-2 ${
                       message.role === "user"
                         ? "text-[var(--primary)]"
                         : "text-emerald-500"
@@ -444,7 +472,7 @@ export function ChatPanel({
               return (
                 <div
                   key={message.id || index}
-                  className="fade-in mb-2"
+                  className="fade-in mb-2 group"
                   onClick={(e) => handleMessageClick(e, message, index)}
                   onContextMenu={(e) => handleMessageClick(e, message, index)}
                   onTouchStart={() => handleTouchStart(message, index)}
@@ -487,7 +515,7 @@ export function ChatPanel({
             return (
               <div
                 key={message.id || index}
-                className={`flex items-end gap-2 ${message.role === "user" ? "justify-end" : "justify-start"} fade-in mb-1`}
+                className={`group flex items-end gap-2 ${message.role === "user" ? "justify-end" : "justify-start"} fade-in mb-1`}
               >
                 {/* AI Avatar - shown on left for assistant */}
                 {message.role === "assistant" && (
@@ -564,6 +592,7 @@ export function ChatPanel({
           totalMessages={messages.length}
           onDelete={onDeleteMessage ? handleDeleteFromMenu : undefined}
           onRegenerate={onRegenerateFromMessage ? handleRegenerateFromMenu : undefined}
+          onEdit={onRewind ? handleEditMessage : undefined}
           onClose={() => setContextMenu(null)}
           position={contextMenu.position}
         />

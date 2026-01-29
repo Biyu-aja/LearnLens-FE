@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
-import { Trash2, Copy, X, RefreshCw, AlertTriangle, Check } from "lucide-react";
+import { Trash2, Copy, X, RefreshCw, AlertTriangle, Check, Edit } from "lucide-react";
 
 interface MessageContextMenuProps {
   messageId: string;
@@ -11,6 +11,7 @@ interface MessageContextMenuProps {
   totalMessages: number;
   onDelete?: (messageId: string) => void;
   onRegenerate?: (messageId: string, messageIndex: number) => void;
+  onEdit?: (messageId: string, content: string) => void;
   onClose: () => void;
   position: { x: number; y: number };
 }
@@ -25,6 +26,7 @@ export function MessageContextMenu({
   totalMessages,
   onDelete,
   onRegenerate,
+  onEdit,
   onClose,
   position,
 }: MessageContextMenuProps) {
@@ -100,6 +102,13 @@ export function MessageContextMenu({
   const handleRegenerateConfirm = () => {
     if (onRegenerate) {
       onRegenerate(messageId, messageIndex);
+    }
+    onClose();
+  };
+
+  const handleEditClick = () => {
+    if (onEdit) {
+      onEdit(messageId, messageContent);
     }
     onClose();
   };
@@ -224,6 +233,16 @@ export function MessageContextMenu({
                 </span>
               )}
             </div>
+          </button>
+        )}
+
+        {onEdit && messageRole === "user" && (
+          <button
+            onClick={handleEditClick}
+            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-[var(--surface-hover)] transition-colors text-left"
+          >
+            <Edit size={16} className="text-[var(--foreground-muted)]" />
+            <span className="text-sm">Edit</span>
           </button>
         )}
 

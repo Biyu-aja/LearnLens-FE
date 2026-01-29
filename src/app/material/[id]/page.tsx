@@ -11,7 +11,9 @@ import {
   MoreVertical,
   Book,
   BarChart3,
-  Layers
+  Layers,
+  BrainCircuit,
+  Calendar
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
@@ -21,6 +23,8 @@ import { SummaryPanel } from "@/components/SummaryPanel";
 import { QuizPanel } from "@/components/QuizPanel";
 import { GlossaryPanel } from "@/components/GlossaryPanel";
 import { FlashcardPanel } from "@/components/FlashcardPanel";
+import MindMapPanel from "@/components/MindMapPanel";
+import StudyPlanPanel from "@/components/StudyPlanPanel";
 import { MaterialUpload } from "@/components/MaterialUpload";
 import { EditMaterialModal } from "@/components/EditMaterialModal";
 import { SettingsModal } from "@/components/SettingsModal";
@@ -32,7 +36,7 @@ import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { PublishConfigModal } from "@/components/PublishConfigModal";
 import { AILanguage } from "@/components/MaterialOptionsModal";
 
-type Tab = "chat" | "summary" | "quiz" | "glossary" | "flashcards" | "analytics";
+type Tab = "chat" | "summary" | "quiz" | "glossary" | "flashcards" | "analytics" | "mindmap" | "study-plan";
 
 export default function MaterialPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -61,6 +65,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
   const [showSummaryConfig, setShowSummaryConfig] = useState(false);
   const [showMaterialOptions, setShowMaterialOptions] = useState(false);
   const [showPublishConfig, setShowPublishConfig] = useState(false);
+  const [chatInitialInput, setChatInitialInput] = useState("");
 
   // AbortController for stopping stream
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -341,6 +346,28 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
     }
   };
 
+  const handleRewindChat = async (messageId: string) => {
+    const index = messages.findIndex(m => m.id === messageId);
+    if (index === -1) return;
+
+    // Messages to delete (from this message onwards)
+    const messagesToDelete = messages.slice(index);
+    
+    // Update local state immediately (optimistic)
+    setMessages((prev) => prev.slice(0, index));
+    
+    // Delete from backend
+    try {
+      for (const msg of messagesToDelete) {
+        if (msg.id && !msg.id.startsWith("user-") && !msg.id.startsWith("streaming-")) {
+          await materialsAPI.deleteMessage(id, msg.id);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to rewind chat:", error);
+    }
+  };
+
   const handleGenerateSummary = async () => {
     // If already has summary, just switch to tab
     if (material?.summary) {
@@ -601,6 +628,9 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
   }
 
   // Always show Analytics tab
+  // Always show Mind Map and Analytics tabs
+  tabs.push({ id: "mindmap", label: "Mind Map", icon: BrainCircuit });
+  tabs.push({ id: "study-plan", label: "Study Plan", icon: Calendar });
   tabs.push({ id: "analytics", label: "Analytics", icon: BarChart3 });
 
   const handleTogglePublic = async (shouldBePublic: boolean) => {
@@ -623,6 +653,22 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
       await materialsAPI.publish(id, data);
       alert("Material published successfully! It is now visible in the Explore section.");
       fetchMaterial();
+      fetchMaterial();
+  };
+
+  const handleVerifyTask = (task: string) => {
+    setActiveTab("chat");
+    setChatInitialInput(`I want to verify my understanding of this task from my study plan:\n\n${task}\n\nPlease give me a quick question or test to check if I have completed this correctly.`);
+  };
+
+  const handleLearnTask = (task: string) => {
+    setActiveTab("chat");
+    setChatInitialInput(`Help me learn this topic from my study plan:\n\n${task}\n\nPlease provide a clear explanation and some examples.`);
+  };
+
+  const handleQuizTask = (task: string) => {
+    setActiveTab("chat");
+    setChatInitialInput(`Create a short quiz for this task:\n\n${task}\n\nPlease provide 3 multiple choice questions to test my understanding.`);
   };
 
   return (
@@ -706,6 +752,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
               onClearHistory={handleClearChat}
               onDeleteMessage={handleDeleteMessage}
               onRegenerateFromMessage={handleRegenerateFromMessage}
+              onRewind={handleRewindChat}
               isLoading={isChatLoading}
               onStopGeneration={handleStopGeneration}
               onEditMaterial={() => setShowEdit(true)}
@@ -721,8 +768,11 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
               isFlashcardsLoading={isFlashcardsLoading}
               hasSummary={!!material.summary}
               hasQuiz={quizzes.length > 0}
-              hasGlossary={glossary !== null && glossary.length > 0}
-              hasFlashcards={flashcards !== null && flashcards.length > 0}
+              hasGlossary={!!glossary && glossary.length > 0}
+              hasFlashcards={!!flashcards && flashcards.length > 0}
+              language={aiLanguage}
+              onLanguageChange={setAiLanguage}
+              initialInput={chatInitialInput}
             />
           )}
           {activeTab === "summary" && (
@@ -759,6 +809,25 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
               onDeleteFlashcards={handleDeleteFlashcards}
               isLoading={isFlashcardsLoading}
               materialId={id}
+            />
+          )}
+          {activeTab === "mindmap" && (
+            <MindMapPanel 
+              materialId={id} 
+              language={aiLanguage}
+              onChatAbout={(topic) => {
+                setActiveTab("chat");
+                handleSendMessage(`Tell me more about "${topic}"`);
+              }}
+            />
+          )}
+          {activeTab === "study-plan" && (
+            <StudyPlanPanel
+              materialId={id}
+              language={aiLanguage}
+              onVerify={handleVerifyTask}
+              onLearn={handleLearnTask}
+              onQuiz={handleQuizTask}
             />
           )}
           {activeTab === "analytics" && (
