@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { 
     ReactFlow, 
     Controls, 
@@ -11,17 +11,256 @@ import {
     Connection, 
     Edge,
     Node,
-    MarkerType
+    MarkerType,
+    Handle,
+    Position,
+    NodeProps,
+    EdgeProps,
+    getBezierPath,
+    BaseEdge,
+    EdgeLabelRenderer,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { BrainCircuit, Loader2, Sparkles, AlertTriangle } from "lucide-react";
-import { aiAPI, MindMapData, MindMapNode, MindMapEdge } from "@/lib/api";
+import { BrainCircuit, Loader2, Sparkles, AlertTriangle, Trash2, Sun, Moon, Plus, Save, Check } from "lucide-react";
+import { aiAPI, MindMapData } from "@/lib/api";
 
 interface MindMapPanelProps {
     materialId: string;
     language?: string;
     onChatAbout?: (topic: string) => void;
 }
+
+// --- Custom Editable Node ---
+function EditableNode({ id, data, selected }: NodeProps) {
+    const [isEditing, setIsEditing] = useState(false);
+    const [label, setLabel] = useState(data.label as string);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const isRoot = data.isRoot as boolean;
+
+    useEffect(() => {
+        if (isEditing && inputRef.current) {
+            inputRef.current.focus();
+            inputRef.current.select();
+        }
+    }, [isEditing]);
+
+    const handleDoubleClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent map double click
+        setIsEditing(true);
+    };
+
+    const handleBlur = () => {
+        setIsEditing(false);
+        if (label !== data.label && data.onLabelChange) {
+            (data.onLabelChange as (id: string, label: string) => void)(id, label);
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleBlur();
+        }
+        if (e.key === 'Escape') {
+            setLabel(data.label as string);
+            setIsEditing(false);
+        }
+    };
+
+    return (
+        <div
+            onDoubleClick={handleDoubleClick}
+            style={{
+                padding: '12px 16px',
+                borderRadius: '12px',
+                minWidth: '120px',
+                maxWidth: '250px',
+                backgroundColor: isRoot ? '#6366f1' : (data.isDark ? '#1e293b' : '#ffffff'),
+                color: isRoot ? '#ffffff' : (data.isDark ? '#e2e8f0' : '#1e293b'),
+                border: `2px solid ${selected ? '#6366f1' : (data.isDark ? '#475569' : '#e2e8f0')}`,
+                boxShadow: selected 
+                    ? '0 0 0 4px rgba(99, 102, 241, 0.2)' 
+                    : isRoot 
+                        ? '0 10px 15px -3px rgba(99, 102, 241, 0.3)' 
+                        : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                cursor: 'pointer',
+                textAlign: 'center',
+                fontSize: isRoot ? '14px' : '13px',
+                fontWeight: isRoot ? 600 : 500,
+                transition: 'all 0.2s ease',
+            }}
+        >
+            <Handle 
+                type="target" 
+                position={Position.Left} 
+                style={{ 
+                    background: '#6366f1',
+                    width: 10,
+                    height: 10,
+                    border: '2px solid white',
+                    left: -6,
+                }}
+            />
+            {isEditing ? (
+                <input
+                    ref={inputRef}
+                    value={label}
+                    onChange={(e) => setLabel(e.target.value)}
+                    onBlur={handleBlur}
+                    onKeyDown={handleKeyDown}
+                    style={{
+                        background: 'transparent',
+                        border: 'none',
+                        outline: 'none',
+                        color: 'inherit',
+                        fontSize: 'inherit',
+                        fontWeight: 'inherit',
+                        width: '100%',
+                        textAlign: 'center',
+                    }}
+                />
+            ) : (
+                <div style={{ wordWrap: 'break-word' }}>{label}</div>
+            )}
+            <Handle 
+                type="source" 
+                position={Position.Right} 
+                style={{ 
+                    background: '#6366f1',
+                    width: 10,
+                    height: 10,
+                    border: '2px solid white',
+                    right: -6,
+                }}
+            />
+        </div>
+    );
+}
+
+// --- Custom Editable Edge ---
+function EditableEdge({
+    id,
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+    style = {},
+    markerEnd,
+    data,
+    selected,
+}: EdgeProps) {
+    const [edgePath, labelX, labelY] = getBezierPath({
+        sourceX,
+        sourceY,
+        sourcePosition,
+        targetX,
+        targetY,
+        targetPosition,
+    });
+
+    const [isEditing, setIsEditing] = useState(false);
+    const [label, setLabel] = useState((data?.label as string) || "");
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    // Sync local state if prop changes (e.g. from backend)
+    useEffect(() => {
+        setLabel((data?.label as string) || "");
+    }, [data?.label]);
+
+    useEffect(() => {
+        if (isEditing && inputRef.current) {
+            inputRef.current.focus();
+            inputRef.current.select();
+        }
+    }, [isEditing]);
+
+    const onEdgeClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setIsEditing(true);
+    };
+
+    const handleBlur = () => {
+        setIsEditing(false);
+        if (data?.onLabelChange) {
+            (data.onLabelChange as (id: string, label: string) => void)(id, label);
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleBlur();
+        }
+    };
+
+    const isDark = data?.isDark;
+
+    return (
+        <>
+            <BaseEdge path={edgePath} markerEnd={markerEnd} style={{...style, strokeWidth: selected ? 3 : 2, stroke: selected ? '#6366f1' : style.stroke}} />
+            <EdgeLabelRenderer>
+                <div
+                    style={{
+                        position: 'absolute',
+                        transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+                        pointerEvents: 'all',
+                    }}
+                >
+                    {isEditing ? (
+                         <input
+                            ref={inputRef}
+                            value={label}
+                            onChange={(e) => setLabel(e.target.value)}
+                            onBlur={handleBlur}
+                            onKeyDown={handleKeyDown}
+                            style={{
+                                background: isDark ? '#1e293b' : '#ffffff',
+                                border: '1px solid #6366f1',
+                                borderRadius: '4px',
+                                padding: '2px 6px',
+                                fontSize: '11px',
+                                color: isDark ? '#f8fafc' : '#334155',
+                                outline: 'none',
+                                minWidth: '60px',
+                                textAlign: 'center',
+                            }}
+                        />
+                    ) : (
+                        label && (
+                            <div 
+                                onDoubleClick={onEdgeClick}
+                                style={{
+                                    padding: '2px 8px',
+                                    borderRadius: '12px',
+                                    backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                                    border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+                                    fontSize: '11px',
+                                    color: isDark ? '#94a3b8' : '#64748b',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                                    maxWidth: '150px',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                }}
+                            >
+                                {label}
+                            </div>
+                        )
+                    )}
+                </div>
+            </EdgeLabelRenderer>
+        </>
+    );
+}
+
+const nodeTypes = {
+    editable: EditableNode,
+};
+
+const edgeTypes = {
+    editable: EditableEdge,
+};
 
 const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
@@ -31,8 +270,11 @@ export default function MindMapPanel({ materialId, language = "en", onChatAbout 
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
     const [isLoading, setIsLoading] = useState(true);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [hasData, setHasData] = useState(false);
+    const [mapTheme, setMapTheme] = useState<'light' | 'dark'>('light');
 
     // Fetch existing mind map on mount
     useEffect(() => {
@@ -51,68 +293,138 @@ export default function MindMapPanel({ materialId, language = "en", onChatAbout 
             }
         } catch (err) {
             console.error("Failed to load mind map:", err);
-            // Don't show error here, just show empty state
             setHasData(false);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const transformAndSetData = (data: MindMapData) => {
-        // Layout logic (simple hierarchical or radial layout)
-        // For now, let's just place the root in center and others around it
+    // Callbacks for validation/editing
+    const handleNodeLabelChange = useCallback((nodeId: string, newLabel: string) => {
+        setNodes((nds) =>
+            nds.map((node) =>
+                node.id === nodeId
+                    ? { ...node, data: { ...node.data, label: newLabel } }
+                    : node
+            )
+        );
+        setHasUnsavedChanges(true);
+    }, [setNodes]);
+
+    const handleEdgeLabelChange = useCallback((edgeId: string, newLabel: string) => {
+        setEdges((eds) =>
+            eds.map((edge) =>
+                edge.id === edgeId
+                    ? { ...edge, data: { ...edge.data, label: newLabel }, label: newLabel } // Update both data and label
+                    : edge
+            )
+        );
+        setHasUnsavedChanges(true);
+    }, [setEdges]);
+
+    // Better layout algorithm (Recursive Tree)
+    const performTreeLayout = (
+        nodes: MindMapData['nodes'], 
+        edges: MindMapData['edges'], 
+        rootId: string
+    ) => {
+        const adjacency: Record<string, string[]> = {};
+        nodes.forEach(n => adjacency[n.id] = []);
+        edges.forEach(e => {
+            if (!adjacency[e.source]) adjacency[e.source] = [];
+            adjacency[e.source].push(e.target);
+        });
+
+        const positions: Record<string, { x: number, y: number }> = {};
+        const LEVEL_GAP = 300;
+        const NODE_HEIGHT = 80;
         
+        // Helper to calculate subtree height
+        const getSubtreeHeight = (nodeId: string): number => {
+            const children = adjacency[nodeId] || [];
+            if (children.length === 0) return NODE_HEIGHT;
+            return children.reduce((acc, child) => acc + getSubtreeHeight(child), 0);
+        };
+
+        const layoutNode = (nodeId: string, x: number, yStart: number) => {
+            // Center parent vertically relative to its children block
+            const myHeight = getSubtreeHeight(nodeId);
+            const myY = yStart + myHeight / 2;
+            
+            positions[nodeId] = { x, y: myY };
+
+            // Layout children
+            let currentY = yStart;
+            const children = adjacency[nodeId] || [];
+            
+            children.forEach(childId => {
+                const childHeight = getSubtreeHeight(childId);
+                layoutNode(childId, x + LEVEL_GAP, currentY);
+                currentY += childHeight;
+            });
+        };
+
+        // Start layout from root
+        // Adjust initial Y to center the whole map somewhat
+        layoutNode(rootId, 0, 0);
+
+        return positions;
+    };
+
+
+    const transformAndSetData = useCallback((data: MindMapData) => {
         const rootNode = data.nodes.find(n => n.type === 'input') || data.nodes[0];
         if (!rootNode) return;
 
-        const reactFlowNodes: Node[] = data.nodes.map((node, index) => {
-            const isRoot = node.id === rootNode.id;
-            
-            // Basic Layout Algorithm
-            let position = { x: 0, y: 0 };
-            if (!isRoot) {
-                // simple circle layout for non-root nodes
-                const angle = ((index) / (data.nodes.length - 1)) * 2 * Math.PI;
-                const radius = 250 + (index % 2) * 50; // stagger radius slightly
-                position = {
-                    x: Math.cos(angle) * radius,
-                    y: Math.sin(angle) * radius
-                };
-            }
+        // Perform Layout
+        const positions = performTreeLayout(data.nodes, data.edges, rootNode.id);
+        
+        const isDark = mapTheme === 'dark';
 
+        const reactFlowNodes: Node[] = data.nodes.map((node) => {
+            const isRoot = node.id === rootNode.id;
+            const pos = positions[node.id] || { x: 0, y: 0 };
+            
             return {
                 id: node.id,
-                type: isRoot ? 'input' : 'default',
-                data: { label: node.label },
-                position: position,
-                style: {
-                    background: isRoot ? 'var(--primary)' : 'var(--surface)',
-                    color: isRoot ? '#fff' : 'var(--foreground)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '8px',
-                    padding: '10px',
-                    width: 150,
-                    fontWeight: isRoot ? 'bold' : 'normal',
-                    textAlign: 'center',
-                }
+                type: 'editable',
+                data: { 
+                    label: node.label,
+                    isRoot,
+                    isDark,
+                    onLabelChange: handleNodeLabelChange,
+                },
+                position: pos,
+                targetPosition: Position.Left,
+                sourcePosition: Position.Right,
             };
         });
 
-        const reactFlowEdges: Edge[] = data.edges.map(edge => ({
+        const reactFlowEdges = data.edges.map(edge => ({
             id: edge.id,
             source: edge.source,
             target: edge.target,
+            type: 'editable',
             label: edge.label,
-            type: 'smoothstep',
+            data: {
+                label: edge.label,
+                isDark,
+                onLabelChange: handleEdgeLabelChange,
+            },
             markerEnd: {
                 type: MarkerType.ArrowClosed,
+                color: isDark ? '#64748b' : '#94a3b8',
             },
-            style: { stroke: 'var(--foreground-muted)' }
-        }));
+            style: { 
+                stroke: isDark ? '#64748b' : '#94a3b8',
+                strokeWidth: 2,
+            },
+        })) as Edge[];
 
         setNodes(reactFlowNodes);
         setEdges(reactFlowEdges);
-    };
+        setHasUnsavedChanges(false);
+    }, [mapTheme, handleNodeLabelChange, handleEdgeLabelChange, setNodes, setEdges]);
 
     const handleGenerate = async () => {
         setIsGenerating(true);
@@ -122,6 +434,7 @@ export default function MindMapPanel({ materialId, language = "en", onChatAbout 
             if (response.success && response.mindMap) {
                 transformAndSetData(response.mindMap);
                 setHasData(true);
+                setHasUnsavedChanges(false);
             } else {
                 setError("Failed to generate structure.");
             }
@@ -133,33 +446,154 @@ export default function MindMapPanel({ materialId, language = "en", onChatAbout 
         }
     };
 
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            // Convert React Flow nodes/edges back to MindMapData format
+            const mindMapData: MindMapData = {
+                nodes: nodes.map(n => ({
+                    id: n.id,
+                    label: n.data.label as string,
+                    type: n.data.isRoot ? 'input' : 'default',
+                })),
+                edges: edges.map(e => ({
+                    id: e.id,
+                    source: e.source,
+                    target: e.target,
+                    label: e.data?.label as string || e.label as string,
+                })),
+            };
+
+            await aiAPI.saveMindMap(materialId, mindMapData);
+            setHasUnsavedChanges(false);
+        } catch (err) {
+            console.error("Failed to save mind map:", err);
+            setError("Failed to save changes.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!confirm("Delete this mind map?")) return;
+        try {
+            await aiAPI.deleteMindMap(materialId);
+            setNodes([]);
+            setEdges([]);
+            setHasData(false);
+        } catch (err) {
+            console.error("Failed to delete mind map:", err);
+        }
+    };
+
+    const handleAddNode = () => {
+        const newId = `node-${Date.now()}`;
+        const isDark = mapTheme === 'dark';
+        
+        // Find a centered position relative to current view or just arbitrary
+        // Better: Find the selected node and place it near it, or defaulting
+        const x = 100;
+        const y = 100;
+
+        const newNode: Node = {
+            id: newId,
+            type: 'editable',
+            data: { 
+                label: 'New Concept',
+                isRoot: false,
+                isDark,
+                onLabelChange: handleNodeLabelChange,
+            },
+            position: { x, y },
+        };
+
+        setNodes((nds) => [...nds, newNode]);
+        setHasUnsavedChanges(true);
+    };
+
     const onConnect = useCallback(
-        (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-        [setEdges],
+        (params: Connection) => {
+            const newEdge = {
+                ...params,
+                id: `edge-${Date.now()}`,
+                type: 'editable',
+                data: {
+                    label: 'relates to',
+                    isDark: mapTheme === 'dark',
+                    onLabelChange: handleEdgeLabelChange,
+                },
+                markerEnd: {
+                    type: MarkerType.ArrowClosed,
+                    color: mapTheme === 'dark' ? '#64748b' : '#94a3b8',
+                },
+                style: { 
+                    stroke: mapTheme === 'dark' ? '#64748b' : '#94a3b8',
+                    strokeWidth: 2,
+                },
+            };
+            setEdges((eds) => addEdge(newEdge, eds));
+            setHasUnsavedChanges(true);
+        },
+        [setEdges, mapTheme, handleEdgeLabelChange]
     );
 
-    if (isLoading) { // Initial load
+    // Update nodes when theme changes
+    useEffect(() => {
+        if (hasData && nodes.length > 0) {
+            const isDark = mapTheme === 'dark';
+            setNodes((nds) =>
+                nds.map((node) => ({
+                    ...node,
+                    data: { ...node.data, isDark },
+                }))
+            );
+            setEdges((eds) =>
+                eds.map((edge) => ({
+                    ...edge,
+                    data: { ...edge.data, isDark, onLabelChange: handleEdgeLabelChange },
+                    markerEnd: {
+                        type: MarkerType.ArrowClosed,
+                        color: isDark ? '#64748b' : '#94a3b8',
+                    },
+                    style: { 
+                        stroke: isDark ? '#64748b' : '#94a3b8',
+                        strokeWidth: 2,
+                    },
+                }))
+            );
+        }
+    }, [mapTheme]); // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    const toggleMapTheme = () => {
+        setMapTheme(prev => prev === 'light' ? 'dark' : 'light');
+    };
+
+    const isDark = mapTheme === 'dark';
+
+    if (isLoading) {
         return (
-            <div className="flex flex-col items-center justify-center h-full text-[var(--foreground-muted)]">
-                <Loader2 className="animate-spin mb-2" size={24} />
-                <p>Loading Mind Map...</p>
+            <div className="flex flex-col items-center justify-center w-full min-h-[500px] h-full bg-[var(--background)]">
+                <Loader2 className="animate-spin mb-4 text-indigo-500" size={32} />
+                <p className="font-medium text-[var(--foreground-muted)]">Loading Mind Map...</p>
             </div>
         );
     }
 
     if (!hasData) {
         return (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-center animate-in fade-in duration-500">
-                <div className="w-16 h-16 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center mb-6 text-indigo-600 dark:text-indigo-400">
-                    <BrainCircuit size={32} />
+            <div className="flex flex-col items-center justify-center w-full min-h-[500px] h-full p-8 text-center bg-[var(--background)]">
+                <div className="w-20 h-20 rounded-full bg-indigo-500/10 flex items-center justify-center mb-6 text-indigo-500 ring-1 ring-indigo-500/20">
+                    <BrainCircuit size={40} />
                 </div>
-                <h3 className="text-xl font-bold mb-2">Interactive Mind Map</h3>
-                <p className="text-[var(--foreground-muted)] max-w-md mb-8">
-                    Visualize the key concepts and relationships in this material with an interactive graph.
+                <h3 className="text-2xl font-bold mb-3 text-[var(--foreground)]">
+                    Generate Mind Map
+                </h3>
+                <p className="text-[var(--foreground-muted)] max-w-md mb-8 text-lg">
+                    Create an AI-powered mind map, then customize it by adding nodes, editing labels, and connecting concepts.
                 </p>
                 
                 {error && (
-                    <div className="flex items-center gap-2 text-red-500 bg-red-50 dark:bg-red-900/10 px-4 py-3 rounded-lg mb-6 max-w-md">
+                    <div className="flex items-center gap-2 text-red-500 bg-red-500/10 border border-red-500/20 px-4 py-3 rounded-lg mb-6 max-w-md">
                         <AlertTriangle size={18} />
                         <span className="text-sm">{error}</span>
                     </div>
@@ -168,50 +602,207 @@ export default function MindMapPanel({ materialId, language = "en", onChatAbout 
                 <button
                     onClick={handleGenerate}
                     disabled={isGenerating}
-                    className="flex items-center gap-2 px-6 py-3 bg-[var(--primary)] text-white font-medium rounded-xl hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/20"
+                    className="flex items-center gap-3 px-8 py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/20"
                 >
                     {isGenerating ? (
                         <>
-                            <Loader2 className="animate-spin" size={20} />
-                            Generating Structure...
+                            <Loader2 className="animate-spin" size={24} />
+                            Generating...
                         </>
                     ) : (
                         <>
-                            <Sparkles size={20} />
+                            <Sparkles size={24} />
                             Generate Mind Map
                         </>
                     )}
                 </button>
-                <p className="text-xs text-[var(--foreground-muted)] mt-4 opacity-70">
-                    Powered by AI • Instantly generated
-                </p>
             </div>
         );
     }
 
     return (
-        <div className="h-full w-full bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-[var(--border)] overflow-hidden relative group">
+        <div 
+            style={{ 
+                height: '100%', 
+                minHeight: '600px', 
+                width: '100%', 
+                backgroundColor: isDark ? '#0f172a' : '#f8fafc', 
+                borderRadius: '12px', 
+                border: `1px solid ${isDark ? '#1e293b' : '#e2e8f0'}`, 
+                overflow: 'hidden', 
+                position: 'relative' 
+            }}
+        >
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
+                nodeTypes={nodeTypes}
+                edgeTypes={edgeTypes}
                 fitView
-                className="bg-dot-pattern"
+                fitViewOptions={{ padding: 0.3 }}
+                deleteKeyCode={['Backspace', 'Delete']}
+                connectionLineStyle={{ stroke: '#6366f1', strokeWidth: 2 }}
             >
-                <Controls className="!bg-[var(--surface)] !border-[var(--border)] !shadow-sm" />
-                <Background color="#94a3b8" gap={16} size={1} className="opacity-20" />
+                <Controls 
+                    position="top-left"
+                    style={{ 
+                        backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                        border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                        padding: '4px',
+                        color: isDark ? '#f8fafc' : '#1e293b',
+                    }}
+                    className="[&>button]:border-none! [&>button]:bg-transparent! [&>button:hover]:bg-black/5! dark:[&>button:hover]:bg-white/10! [&_svg]:fill-current!"
+                />
+                <Background 
+                    color={isDark ? '#334155' : '#cbd5e1'} 
+                    gap={20} 
+                    size={1} 
+                />
             </ReactFlow>
-            
-            <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+
+            {/* Top right buttons */}
+            <div style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', gap: '8px' }}>
                 <button 
-                    onClick={handleGenerate} 
-                    className="p-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-sm hover:bg-[var(--surface-hover)] text-[var(--foreground-muted)]"
+                    onClick={handleAddNode}
+                    style={{
+                        padding: '8px 12px',
+                        backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                        border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        color: '#10b981',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                    }}
+                    title="Add Node"
+                >
+                    <Plus size={16} />
+                    Add
+                </button>
+
+                <button 
+                    onClick={handleSave}
+                    disabled={isSaving || !hasUnsavedChanges}
+                    style={{
+                        padding: '8px 12px',
+                        backgroundColor: hasUnsavedChanges 
+                            ? '#6366f1' 
+                            : (isDark ? '#1e293b' : '#ffffff'),
+                        border: `1px solid ${hasUnsavedChanges ? '#6366f1' : (isDark ? '#334155' : '#e2e8f0')}`,
+                        borderRadius: '8px',
+                        cursor: hasUnsavedChanges ? 'pointer' : 'default',
+                        color: hasUnsavedChanges ? '#ffffff' : (isDark ? '#64748b' : '#94a3b8'),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        opacity: hasUnsavedChanges ? 1 : 0.5,
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                    }}
+                    title="Save Changes"
+                >
+                    {isSaving ? (
+                        <Loader2 className="animate-spin" size={16} />
+                    ) : (
+                        hasUnsavedChanges ? <Save size={16} /> : <Check size={16} />
+                    )}
+                    {isSaving ? 'Saving...' : hasUnsavedChanges ? 'Save' : 'Saved'}
+                </button>
+
+                <button 
+                    onClick={handleGenerate}
+                    disabled={isGenerating}
+                    style={{
+                        padding: '8px',
+                        backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                        border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        color: '#6366f1',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                    }}
                     title="Regenerate"
                 >
-                    <Sparkles size={16} />
+                    {isGenerating ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
                 </button>
+
+                <button 
+                    onClick={handleDelete}
+                    style={{
+                        padding: '8px',
+                        backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                        border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        color: '#ef4444',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                    }}
+                    title="Delete"
+                >
+                    <Trash2 size={16} />
+                </button>
+            </div>
+
+            {/* Bottom right theme toggle */}
+            <div style={{ position: 'absolute', bottom: '16px', right: '16px' }}>
+                <button 
+                    onClick={toggleMapTheme}
+                    style={{
+                        padding: '10px',
+                        backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                        border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        color: isDark ? '#fbbf24' : '#64748b',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                    }}
+                    title={isDark ? 'Switch to Light' : 'Switch to Dark'}
+                >
+                    {isDark ? <Sun size={16} /> : <Moon size={16} />}
+                    {isDark ? 'Light' : 'Dark'}
+                </button>
+            </div>
+
+             {/* Instructions */}
+             <div 
+                style={{ 
+                    position: 'absolute', 
+                    bottom: '16px', 
+                    left: '16px',
+                    backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                    border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    fontSize: '11px',
+                    color: isDark ? '#94a3b8' : '#64748b',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                }}
+            >
+                <strong>Tips:</strong> Double-click node/edge to edit • Drag handles to connect
             </div>
         </div>
     );

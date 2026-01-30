@@ -405,6 +405,12 @@ export const aiAPI = {
             method: "DELETE",
         }),
 
+    saveMindMap: (materialId: string, mindMap: MindMapData) =>
+        fetchAPI<{ success: boolean }>(`/api/ai/${materialId}/mindmap`, {
+            method: "PUT",
+            body: JSON.stringify({ mindMap }),
+        }),
+
     // Study Plan
     generateStudyPlan: (materialId: string, language: string = "en", model?: string, customConfig?: CustomConfig, focus?: string) =>
         fetchAPI<{ success: boolean; plan: StudyPlan }>(`/api/ai/${materialId}/study-plan`, {

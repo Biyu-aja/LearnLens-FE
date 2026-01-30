@@ -271,7 +271,7 @@ export default function StudyPlanPanel({ materialId, language = "en", onVerify, 
         // Don't close modal on backdrop click - user must use X button or complete the flow
       >
         <div 
-          className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden"
+          className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -288,8 +288,8 @@ export default function StudyPlanPanel({ materialId, language = "en", onVerify, 
             </button>
           </div>
 
-          {/* Content */}
-          <div className="p-6">
+          {/* Content - Scrollable */}
+          <div className="p-6 flex-1 overflow-y-auto">
             {/* Initial Prompt */}
             {verificationState === "prompt" && (
               <div className="text-center">
@@ -341,13 +341,13 @@ export default function StudyPlanPanel({ materialId, language = "en", onVerify, 
               <div>
                 {/* Topic Badge */}
                 <div className="mb-4 p-3 bg-indigo-900/30 border border-indigo-800 rounded-xl">
-                  <p className="text-xs text-indigo-400 mb-1">📚 Topik yang diuji:</p>
+                  <p className="text-xs text-indigo-400 mb-1">📚 Topic being tested:</p>
                   <p className="text-indigo-200 font-medium">{verifyingTask.task}</p>
                 </div>
 
                 {/* Question */}
                 <div className="mb-4">
-                  <p className="text-sm text-gray-400 mb-2">Pertanyaan:</p>
+                  <p className="text-sm text-gray-400 mb-2">Question:</p>
                   <p className="text-white text-lg leading-relaxed">{essayQuestion}</p>
                   {questionDescription && (
                     <p className="text-gray-400 text-sm mt-3 p-3 bg-gray-800/50 rounded-lg">💡 <span className="font-medium">Hint:</span> {questionDescription}</p>
@@ -356,11 +356,11 @@ export default function StudyPlanPanel({ materialId, language = "en", onVerify, 
                 
                 {/* Answer Input */}
                 <div className="mb-4">
-                  <p className="text-sm text-gray-400 mb-2">Jawaban Anda:</p>
+                  <p className="text-sm text-gray-400 mb-2">Your Answer:</p>
                   <textarea
                     value={userAnswer}
                     onChange={(e) => setUserAnswer(e.target.value)}
-                    placeholder="Ketik jawaban Anda di sini... (2-4 kalimat sudah cukup)"
+                    placeholder="Type your answer here... (2-4 sentences is enough)"
                     rows={5}
                     className="w-full px-4 py-3 rounded-xl bg-gray-800 border border-gray-600 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                     autoFocus
@@ -405,7 +405,7 @@ export default function StudyPlanPanel({ materialId, language = "en", onVerify, 
                     {evaluationResult.score}/100
                   </div>
                   <p className={`text-sm ${evaluationResult.passed ? 'text-green-400' : 'text-red-400'}`}>
-                    {evaluationResult.passed ? "Great job! Task marked as complete." : "Score below 60. Keep studying!"}
+                    {evaluationResult.passed ? "🎉 Great job! Task complete." : "Try again, you can do it!"}
                   </p>
                 </div>
 
@@ -474,14 +474,6 @@ export default function StudyPlanPanel({ materialId, language = "en", onVerify, 
               </p>
             </div>
           </div>
-          <button 
-            onClick={handleGenerate}
-            disabled={isGenerating}
-            className="p-2 rounded-lg bg-[var(--surface-hover)] text-[var(--foreground)] hover:bg-[var(--border)] transition-colors disabled:opacity-50"
-            title="Regenerate Plan"
-          >
-            <RefreshCw className={`w-5 h-5 ${isGenerating ? 'animate-spin' : ''}`} />
-          </button>
         </div>
 
         {/* Regenerate with focus */}
@@ -521,7 +513,7 @@ export default function StudyPlanPanel({ materialId, language = "en", onVerify, 
               
               <h3 className="text-lg font-medium text-[var(--foreground)] mb-4 -mt-1 flex items-center gap-2">
                 <Clock className="w-4 h-4 text-[var(--foreground-muted)]" />
-                Day {day}
+                Step {day}
               </h3>
 
               <div className="space-y-3">

@@ -826,14 +826,16 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
             />
           )}
           {activeTab === "mindmap" && (
-            <MindMapPanel 
-              materialId={id} 
-              language={aiLanguage}
-              onChatAbout={(topic) => {
-                setActiveTab("chat");
-                handleSendMessage(`Tell me more about "${topic}"`);
-              }}
-            />
+            <div className="w-full h-full min-h-[600px]">
+              <MindMapPanel 
+                materialId={id} 
+                language={aiLanguage}
+                onChatAbout={(topic) => {
+                  setActiveTab("chat");
+                  handleSendMessage(`Tell me more about "${topic}"`);
+                }}
+              />
+            </div>
           )}
           {activeTab === "study-plan" && (
             <StudyPlanPanel
