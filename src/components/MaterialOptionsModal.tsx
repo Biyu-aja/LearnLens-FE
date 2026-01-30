@@ -284,9 +284,12 @@ export function MaterialOptionsModal({
 
           {/* Export PDF Button */}
           <button
-            onClick={() => {
-              // TODO: Implement PDF export
-              alert("PDF Export feature coming soon! This will generate a learning summary report.");
+            onClick={async () => {
+              try {
+                await materialsAPI.downloadReport(materialId, materialTitle);
+              } catch (err: any) {
+                 setError("Failed to download report: " + (err.message || "Unknown error"));
+              }
             }}
             className="w-full flex items-center gap-3 p-3 rounded-xl border border-[var(--border)] hover:border-green-400 hover:bg-green-50/50 dark:hover:bg-green-900/10 transition-all group"
           >

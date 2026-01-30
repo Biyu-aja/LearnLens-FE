@@ -218,6 +218,28 @@ export const materialsAPI = {
         fetchAPI<{ success: boolean; material: Material }>(`/api/materials/${id}/unpublish`, {
             method: "POST",
         }),
+
+    downloadReport: async (id: string, title: string) => {
+        const token = getToken();
+        // Direct fetch because we handle blob response
+        const response = await fetch(`${API_URL}/api/materials/${id}/report`, {
+            headers: {
+                ...(token && { Authorization: `Bearer ${token}` }),
+            },
+        });
+
+        if (!response.ok) throw new Error("Failed to download report");
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${title.replace(/[^a-zA-Z0-9]/g, "_")}_Report.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    },
 };
 
 // Chat API
