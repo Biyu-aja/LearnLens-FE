@@ -550,6 +550,7 @@ export interface MindMapNode {
     id: string;
     label: string;
     type?: string;
+    position?: { x: number; y: number };
 }
 
 export interface MindMapEdge {

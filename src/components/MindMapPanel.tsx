@@ -376,14 +376,20 @@ export default function MindMapPanel({ materialId, language = "en", onChatAbout 
         const rootNode = data.nodes.find(n => n.type === 'input') || data.nodes[0];
         if (!rootNode) return;
 
-        // Perform Layout
-        const positions = performTreeLayout(data.nodes, data.edges, rootNode.id);
+        // Check if any node has saved position
+        const hasSavedPositions = data.nodes.some(n => n.position && n.position.x !== undefined);
+        
+        // Only calculate layout if no saved positions
+        const calculatedPositions = hasSavedPositions 
+            ? {} 
+            : performTreeLayout(data.nodes, data.edges, rootNode.id);
         
         const isDark = mapTheme === 'dark';
 
         const reactFlowNodes: Node[] = data.nodes.map((node) => {
             const isRoot = node.id === rootNode.id;
-            const pos = positions[node.id] || { x: 0, y: 0 };
+            // Use saved position if available, otherwise use calculated position
+            const pos = node.position || calculatedPositions[node.id] || { x: 0, y: 0 };
             
             return {
                 id: node.id,
@@ -455,6 +461,7 @@ export default function MindMapPanel({ materialId, language = "en", onChatAbout 
                     id: n.id,
                     label: n.data.label as string,
                     type: n.data.isRoot ? 'input' : 'default',
+                    position: { x: n.position.x, y: n.position.y },
                 })),
                 edges: edges.map(e => ({
                     id: e.id,
@@ -666,51 +673,31 @@ export default function MindMapPanel({ materialId, language = "en", onChatAbout 
             </ReactFlow>
 
             {/* Top right buttons */}
-            <div style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', gap: '8px' }}>
+            <div className="flex gap-2 absolute top-4 right-4 z-10 transition-all">
                 <button 
                     onClick={handleAddNode}
-                    style={{
-                        padding: '8px 12px',
-                        backgroundColor: isDark ? '#1e293b' : '#ffffff',
-                        border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        color: '#10b981',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        fontSize: '12px',
-                        fontWeight: 500,
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                    }}
+                    className={`
+                        flex items-center justify-center gap-2 rounded-lg border shadow-sm transition-all
+                        ${isDark ? 'bg-[#1e293b] border-[#334155] text-[#10b981]' : 'bg-white border-[#e2e8f0] text-[#10b981]'}
+                        p-2 md:px-3 md:py-2 text-xs md:text-sm font-medium
+                    `}
                     title="Add Node"
                 >
                     <Plus size={16} />
-                    Add
+                    <span className="hidden md:inline">Add</span>
                 </button>
 
                 <button 
                     onClick={handleSave}
                     disabled={isSaving || !hasUnsavedChanges}
-                    style={{
-                        padding: '8px 12px',
-                        backgroundColor: hasUnsavedChanges 
-                            ? '#6366f1' 
-                            : (isDark ? '#1e293b' : '#ffffff'),
-                        border: `1px solid ${hasUnsavedChanges ? '#6366f1' : (isDark ? '#334155' : '#e2e8f0')}`,
-                        borderRadius: '8px',
-                        cursor: hasUnsavedChanges ? 'pointer' : 'default',
-                        color: hasUnsavedChanges ? '#ffffff' : (isDark ? '#64748b' : '#94a3b8'),
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        fontSize: '12px',
-                        fontWeight: 500,
-                        opacity: hasUnsavedChanges ? 1 : 0.5,
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                    }}
+                    className={`
+                        flex items-center justify-center gap-2 rounded-lg border shadow-sm transition-all
+                        ${hasUnsavedChanges 
+                            ? 'bg-indigo-500 border-indigo-500 text-white cursor-pointer hover:bg-indigo-600' 
+                            : (isDark ? 'bg-[#1e293b] border-[#334155] text-[#64748b] opacity-50 cursor-default' : 'bg-white border-[#e2e8f0] text-[#94a3b8] opacity-50 cursor-default')
+                        }
+                        p-2 md:px-3 md:py-2 text-xs md:text-sm font-medium
+                    `}
                     title="Save Changes"
                 >
                     {isSaving ? (
@@ -718,24 +705,19 @@ export default function MindMapPanel({ materialId, language = "en", onChatAbout 
                     ) : (
                         hasUnsavedChanges ? <Save size={16} /> : <Check size={16} />
                     )}
-                    {isSaving ? 'Saving...' : hasUnsavedChanges ? 'Save' : 'Saved'}
+                    <span className="hidden md:inline">
+                        {isSaving ? 'Saving...' : hasUnsavedChanges ? 'Save' : 'Saved'}
+                    </span>
                 </button>
 
                 <button 
                     onClick={handleGenerate}
                     disabled={isGenerating}
-                    style={{
-                        padding: '8px',
-                        backgroundColor: isDark ? '#1e293b' : '#ffffff',
-                        border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        color: '#6366f1',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                    }}
+                    className={`
+                        flex items-center justify-center rounded-lg border shadow-sm transition-all
+                        ${isDark ? 'bg-[#1e293b] border-[#334155] text-indigo-400' : 'bg-white border-[#e2e8f0] text-indigo-600'}
+                        p-2 hover:opacity-80
+                    `}
                     title="Regenerate"
                 >
                     {isGenerating ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
@@ -743,64 +725,40 @@ export default function MindMapPanel({ materialId, language = "en", onChatAbout 
 
                 <button 
                     onClick={handleDelete}
-                    style={{
-                        padding: '8px',
-                        backgroundColor: isDark ? '#1e293b' : '#ffffff',
-                        border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        color: '#ef4444',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                    }}
-                    title="Delete"
+                    className={`
+                        flex items-center justify-center rounded-lg border shadow-sm transition-all
+                        ${isDark ? 'bg-[#1e293b] border-[#334155] text-red-400' : 'bg-white border-[#e2e8f0] text-red-500'}
+                        p-2 hover:bg-red-50 dark:hover:bg-red-900/20
+                    `}
+                    title="Delete Map"
                 >
                     <Trash2 size={16} />
                 </button>
             </div>
 
             {/* Bottom right theme toggle */}
-            <div style={{ position: 'absolute', bottom: '16px', right: '16px' }}>
+            <div className="absolute bottom-4 right-4 z-10">
                 <button 
                     onClick={toggleMapTheme}
-                    style={{
-                        padding: '10px',
-                        backgroundColor: isDark ? '#1e293b' : '#ffffff',
-                        border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-                        borderRadius: '10px',
-                        cursor: 'pointer',
-                        color: isDark ? '#fbbf24' : '#64748b',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        fontSize: '12px',
-                        fontWeight: 500,
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                    }}
+                    className={`
+                        flex items-center justify-center gap-2 rounded-lg border shadow-sm transition-all
+                        ${isDark ? 'bg-[#1e293b] border-[#334155] text-amber-400' : 'bg-white border-[#e2e8f0] text-slate-500'}
+                        p-2 md:px-3 md:py-2 text-xs md:text-sm font-medium
+                    `}
                     title={isDark ? 'Switch to Light' : 'Switch to Dark'}
                 >
                     {isDark ? <Sun size={16} /> : <Moon size={16} />}
-                    {isDark ? 'Light' : 'Dark'}
+                    <span className="hidden md:inline">{isDark ? 'Light' : 'Dark'}</span>
                 </button>
             </div>
 
-             {/* Instructions */}
+             {/* Instructions - Hidden on small mobile */}
              <div 
-                style={{ 
-                    position: 'absolute', 
-                    bottom: '16px', 
-                    left: '16px',
-                    backgroundColor: isDark ? '#1e293b' : '#ffffff',
-                    border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-                    borderRadius: '8px',
-                    padding: '8px 12px',
-                    fontSize: '11px',
-                    color: isDark ? '#94a3b8' : '#64748b',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                }}
+                className={`
+                    absolute bottom-4 left-4 z-10 hidden sm:block
+                    rounded-lg border shadow-sm px-3 py-2 text-[10px] md:text-xs
+                    ${isDark ? 'bg-[#1e293b] border-[#334155] text-slate-400' : 'bg-white border-[#e2e8f0] text-slate-500'}
+                `}
             >
                 <strong>Tips:</strong> Double-click node/edge to edit • Drag handles to connect
             </div>
