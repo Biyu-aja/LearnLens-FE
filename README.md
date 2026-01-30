@@ -68,7 +68,6 @@ src/
 - **Quiz Mode**: Test your knowledge with AI-generated quizzes.
 - **Social Sharing**: Publish and explore study materials from the community.
 - **PDF Reports**: Export study progress and summaries to PDF.
-- **Dark Mode**: Sleek UI with full dark mode support.
 
 ## 📝 Available Scripts
 

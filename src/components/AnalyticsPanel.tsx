@@ -1,7 +1,7 @@
     "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { MessageCircle, Trophy, Target, Clock, TrendingUp, Loader2, Sparkles, X, ChevronDown, ChevronUp, History, BrainCircuit, ArrowUpRight, Calendar } from "lucide-react";
+import { MessageCircle, Trophy, Target, Clock, TrendingUp, Loader2, Sparkles, ChevronDown, ChevronUp, BrainCircuit, ArrowUpRight, Calendar } from "lucide-react";
 import { analyticsAPI, MaterialAnalytics, ChatMessage, QuizAttempt, LearningEvaluation } from "@/lib/api";
 
 interface AnalyticsPanelProps {
@@ -68,13 +68,6 @@ export function AnalyticsPanel({ materialId, language = "en" }: AnalyticsPanelPr
       setIsEvaluating(false);
     }
   };
-
-  // derived state for visualization
-  const chartData = useMemo(() => {
-    if (!analytics?.quizPerformance?.recentAttempts) return [];
-    // Take last 10 attempts and reverse for chronological order
-    return [...analytics.quizPerformance.recentAttempts].reverse().slice(-10);
-  }, [analytics]);
 
   // Derived recommendation
   const recommendation = useMemo(() => {
@@ -246,53 +239,6 @@ export function AnalyticsPanel({ materialId, language = "en" }: AnalyticsPanelPr
             {/* Left Column: Charts & Analysis */}
             <div className="lg:col-span-2 space-y-6">
                 
-                {/* Quiz Progress Chart */}
-                <div className="bg-surface border border-border rounded-2xl p-6 shadow-sm">
-                   <div className="flex items-center justify-between mb-6">
-                        <h3 className="font-semibold text-foreground flex items-center gap-2">
-                            <Target size={18} className="text-primary" />
-                            Quiz Performance Trend
-                        </h3>
-                        <span className="text-xs text-foreground-muted bg-background px-2 py-1 rounded-md border border-border">
-                            Last 10 Attempts
-                        </span>
-                   </div>
-                   
-                   {chartData.length > 0 ? (
-                       <div className="h-48 flex items-end gap-2 sm:gap-4">
-                           {chartData.map((attempt, idx) => (
-                               <div key={attempt.id} className="flex-1 flex flex-col justify-end items-center group relative">
-                                   <div 
-                                        className={`w-full max-w-[40px] rounded-t-lg transition-all duration-500 ease-out group-hover:opacity-80 relative ${
-                                            attempt.percentage >= 80 ? 'bg-emerald-500' : 
-                                            attempt.percentage >= 60 ? 'bg-amber-500' : 'bg-rose-500'
-                                        }`}
-                                        style={{ height: `${Math.max(attempt.percentage, 5)}%` }}
-                                   >
-                                       {/* Tooltip */}
-                                       <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
-                                           {attempt.percentage}% • {new Date(attempt.createdAt).toLocaleDateString()}
-                                       </div>
-                                   </div>
-                               </div>
-                           ))}
-                       </div>
-                   ) : (
-                       <div className="h-48 flex items-center justify-center flex-col text-foreground-muted border-2 border-dashed border-border rounded-xl bg-background">
-                           <Target size={32} className="mb-2 opacity-20" />
-                           <p className="text-sm">No quiz data yet</p>
-                           <p className="text-xs opacity-70">Complete quizzes to see your trend</p>
-                       </div>
-                   )}
-                   {/* X-Axis Labels */}
-                    {chartData.length > 0 && (
-                        <div className="flex justify-between items-center text-[10px] text-foreground-muted mt-2 border-t border-border pt-2">
-                            <span>Oldest</span>
-                            <span>Latest</span>
-                        </div>
-                    )}
-                </div>
-
                 {/* AI Evaluation */}
                 <div className="bg-linear-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded-2xl p-6">
                     <div className="flex items-center justify-between mb-4">

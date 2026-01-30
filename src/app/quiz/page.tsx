@@ -16,7 +16,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { MaterialUpload } from "@/components/MaterialUpload";
 import { SettingsModal } from "@/components/SettingsModal";
 import { QuizCard } from "@/components/QuizPanel";
-import { materialsAPI, aiAPI, authAPI, MaterialSummary, Quiz, AIModel, CustomConfig } from "@/lib/api";
+import { materialsAPI, aiAPI, authAPI, analyticsAPI, MaterialSummary, Quiz, AIModel, CustomConfig } from "@/lib/api";
 import { ModelSelector } from "@/components/ModelSelector";
 
 // Supported AI languages
@@ -150,9 +150,19 @@ export default function QuizPage() {
     setHints(prev => ({ ...prev, [quizId]: !prev[quizId] }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setSubmitted(true);
     setShowResults(true);
+    
+    // Save quiz attempt to analytics for each selected material
+    for (const materialId of selectedMaterials) {
+      try {
+        await analyticsAPI.saveQuizAttempt(materialId, score, total);
+        console.log(`Quiz attempt saved for material ${materialId}`);
+      } catch (error) {
+        console.error(`Failed to save quiz attempt for material ${materialId}:`, error);
+      }
+    }
   };
 
   const handleReset = () => {
