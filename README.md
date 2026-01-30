@@ -10,7 +10,6 @@ Next.js frontend for the LearnLens AI-powered tutoring app.
 - **Language**: TypeScript
 - **Visualization**: xyflow/react (Mind Maps)
 - **Icons**: Lucide React
-- **Authentication**: NextAuth.js
 - **PDF Parsing**: pdf-parse
 
 ## 🚀 Quick Setup
