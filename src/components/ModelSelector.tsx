@@ -182,7 +182,7 @@ export function ModelSelector({
           </div>
         </div>
       ) : (
-        <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="space-y-4 animate-in">
            {!compact && (
              <p className="text-xs text-[var(--foreground-muted)]">
                Use your own OpenAI-compatible API endpoint.

@@ -24,8 +24,6 @@ import { Sidebar } from "@/components/Sidebar";
 import { MaterialUpload } from "@/components/MaterialUpload";
 import { materialsAPI, authAPI, MaterialSummary } from "@/lib/api";
 
-type Theme = "light" | "dark" | "system";
-
 export default function SettingsPage() {
   const router = useRouter();
   const { user, loading, logout, updateUser } = useAuth();
@@ -136,12 +134,6 @@ export default function SettingsPage() {
       await fetchMaterials();
       router.push(`/material/${response.material.id}`);
     }
-  };
-
-  // Handle theme change - apply immediately
-  const handleThemeChange = (theme: Theme) => {
-    setLocalSettings({ ...localSettings, theme });
-    updateSettings({ theme });
   };
 
   const handleSaveSettings = async () => {
@@ -367,37 +359,6 @@ export default function SettingsPage() {
                 <div>
                   <h2 className="text-lg font-semibold mb-1">Appearance</h2>
                   <p className="text-sm text-[var(--foreground-muted)]">Customize how LearnLens looks</p>
-                </div>
-
-                {/* Theme Selector */}
-                <div className="p-4 bg-[var(--surface)] rounded-xl border border-[var(--border)]">
-                  <label className="block text-sm font-medium mb-4">Theme</label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { id: "light" as Theme, label: "Light", icon: Sun },
-                      { id: "dark" as Theme, label: "Dark", icon: Moon },
-                      { id: "system" as Theme, label: "System", icon: Monitor },
-                    ].map((theme) => (
-                      <button
-                        key={theme.id}
-                        onClick={() => handleThemeChange(theme.id)}
-                        className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all ${
-                          localSettings.theme === theme.id
-                            ? "border-[var(--primary)] bg-[var(--primary-light)]"
-                            : "border-[var(--border)] hover:border-[var(--primary)]"
-                        }`}
-                      >
-                        <theme.icon size={24} className={localSettings.theme === theme.id ? "text-[var(--primary)]" : ""} />
-                        <span className="text-sm font-medium">{theme.label}</span>
-                        {localSettings.theme === theme.id && (
-                          <Check size={16} className="text-[var(--primary)]" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-xs text-[var(--foreground-muted)] mt-4">
-                    Theme changes are applied immediately
-                  </p>
                 </div>
 
                 {/* Chat Theme Selector */}
