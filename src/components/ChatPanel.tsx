@@ -69,7 +69,7 @@ export function ChatPanel({
   initialInput
 }: ChatPanelProps) {
   const { user } = useAuth();
-  const { settings, config } = useSettings();
+  const { settings } = useSettings();
   const [input, setInput] = useState(initialInput || "");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -289,52 +289,11 @@ export function ChatPanel({
   const currentModelName = user?.preferredModel 
     ? (user.preferredModel === "claude-4.5-sonnet" ? "Claude 4.5 Sonnet" : 
        user.preferredModel.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase()))
-    : "Gemini 2.5 Flash Lite";
+    : "Gemini 3 Flash";
 
   return (
     <div className="flex flex-col h-full bg-[var(--surface)]">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-[var(--border)] shrink-0 z-20 relative">
-        <div className="flex flex-col gap-0.5">
-          <h2 className="text-base font-semibold flex items-center gap-2">
-            LearnLens
-            {/* Model Selector Button - Opens Modal Directly */}
-            <button 
-              onClick={onOpenSettings}
-              className="flex items-center gap-1.5 px-2 py-0.5 text-xs font-normal bg-[var(--background)] border border-[var(--border)] rounded-md hover:bg-[var(--surface-hover)] transition-colors text-[var(--foreground-muted)]"
-              title="Configure AI Model & Settings"
-            >
-              <Settings size={12} />
-              <span className="capitalize truncate max-w-[140px]">{currentModelName}</span>
-              <ChevronDown size={12} />
-            </button>
-          </h2>
-          <p className="text-xs text-[var(--foreground-muted)]">Ask questions about your material</p>
-        </div>
 
-        <div className="flex items-center gap-2">
-           {onEditMaterial && (
-            <button
-              onClick={onEditMaterial}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--foreground)] border border-[var(--border)] rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
-              title="Edit Material Content"
-            >
-              <Edit size={14} />
-              <span className="hidden sm:inline">Edit Content</span>
-            </button>
-          )}
-
-          {messages.length > 0 && (
-            <button
-              onClick={onClearHistory}
-              className="px-2 py-1.5 text-xs text-[var(--error)] hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors border border-transparent hover:border-red-100"
-              title="Clear Chat History"
-            >
-              <Trash2 size={16} />
-            </button>
-          )}
-        </div>
-      </div>
 
 
       {/* Messages */}

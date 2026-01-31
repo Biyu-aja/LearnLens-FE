@@ -25,6 +25,19 @@ export default function ExplorePage() {
   const [userMaterials, setUserMaterials] = useState<MaterialSummary[]>([]);
   const [showUpload, setShowUpload] = useState(false);
 
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  // Debounce search query
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery]);
+
   // Auth Protection
   useEffect(() => {
     if (!authLoading && !user) {
@@ -36,10 +49,13 @@ export default function ExplorePage() {
   useEffect(() => {
     if (user) {
       fetchPublicMaterials();
-      fetchUserMaterials();
+      if (view === 'community') {
+         // Only fetch user materials once or when context changes, but here is fine
+         fetchUserMaterials();
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, sortBy, view]);
+  }, [user, sortBy, view, debouncedQuery]);
 
   const fetchUserMaterials = async () => {
     try {
@@ -54,7 +70,8 @@ export default function ExplorePage() {
     setIsLoading(true);
     try {
       const userId = view === 'my-posts' ? user?.id : undefined;
-      const response = await exploreAPI.list(sortBy, searchQuery, userId);
+      // Use debouncedQuery for the actual API call
+      const response = await exploreAPI.list(sortBy, debouncedQuery, userId);
       setPublicMaterials(response.materials);
     } catch (error) {
       console.error("Failed to fetch public materials:", error);
@@ -65,7 +82,7 @@ export default function ExplorePage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchPublicMaterials();
+    // Search is handled by debounce effect
   };
 
   const handleLike = async (id: string, currentLiked: boolean) => {

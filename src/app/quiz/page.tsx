@@ -16,8 +16,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { MaterialUpload } from "@/components/MaterialUpload";
 import { SettingsModal } from "@/components/SettingsModal";
 import { QuizCard } from "@/components/QuizPanel";
-import { materialsAPI, aiAPI, authAPI, analyticsAPI, MaterialSummary, Quiz, AIModel, CustomConfig } from "@/lib/api";
-import { ModelSelector } from "@/components/ModelSelector";
+import { materialsAPI, aiAPI, authAPI, analyticsAPI, MaterialSummary, Quiz, AIModel } from "@/lib/api";
 
 // Supported AI languages
 const AI_LANGUAGES = [
@@ -62,15 +61,10 @@ export default function QuizPage() {
   const [config, setConfig] = useState<QuizConfig>({
     questionCount: 10,
     difficulty: "medium",
-    model: "gemini-2.5-flash-lite", // default fallback
+    model: "gemini-3-flash", // default fallback
     language: "en",
   });
 
-  // Custom API state
-  const [apiMode, setApiMode] = useState<"default" | "custom">("default");
-  const [customApiUrl, setCustomApiUrl] = useState("");
-  const [customApiKey, setCustomApiKey] = useState("");
-  const [customModel, setCustomModel] = useState("");
 
   // Quiz state
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
@@ -91,16 +85,10 @@ export default function QuizPage() {
     if (user) {
       loadData();
       
-      // Init custom API config
-      setCustomApiUrl(user.customApiUrl || "");
-      setCustomModel(user.customModel || "");
-      const hasActiveCustomApi = user.customApiUrl && (user.hasCustomApiKey || user.customModel);
-      setApiMode(hasActiveCustomApi ? "custom" : "default");
-      
-      // Init model
+      // Init model with fixed default
       setConfig(prev => ({ 
         ...prev, 
-        model: user.preferredModel || "gemini-2.5-flash-lite" 
+        model: "gemini-3-flash" 
       }));
     }
   }, [user]);
@@ -198,15 +186,10 @@ export default function QuizPage() {
       const response = await aiAPI.generateQuiz(primaryMaterialId, {
         count: config.questionCount,
         difficulty: config.difficulty,
-        model: config.model,
+        model: "gemini-3-flash",
         materialIds: selectedMaterials,
         customText: customText.trim(),
-        language: config.language,
-        customConfig: apiMode === "custom" ? {
-          customApiUrl,
-          customApiKey,
-          customModel
-        } : undefined
+        language: config.language
       });
       setQuizzes(response.quizzes);
     } catch (error) {
@@ -454,23 +437,6 @@ export default function QuizPage() {
                     </div>
                   </div>
 
-                  {/* Model */}
-                  <div className="mb-6">
-                    <ModelSelector
-                      apiMode={apiMode}
-                      onApiModeChange={setApiMode}
-                      selectedModel={config.model}
-                      onModelSelect={(m) => setConfig(prev => ({ ...prev, model: m }))}
-                      customApiUrl={customApiUrl}
-                      onCustomApiUrlChange={setCustomApiUrl}
-                      customApiKey={customApiKey}
-                      onCustomApiKeyChange={setCustomApiKey}
-                      customModel={customModel}
-                      onCustomModelChange={setCustomModel}
-                      user={user}
-                      compact={true}
-                    />
-                  </div>
 
                   {/* Language */}
                   <div className="mb-6">

@@ -2,9 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { X, Loader2, FileText, Sparkles, ListOrdered, BookOpen, Minimize2 } from "lucide-react";
-import { authAPI, CustomConfig } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
-import { ModelSelector } from "./ModelSelector";
 
 interface SummaryConfigModalProps {
   isOpen: boolean;
@@ -16,7 +13,6 @@ interface SummaryConfigModalProps {
 export interface SummaryConfig {
   model: string;
   customText: string;
-  customConfig?: CustomConfig;
 }
 
 // Prompt templates for summary
@@ -50,34 +46,14 @@ export function SummaryConfigModal({
   onGenerate,
   currentMaterialTitle,
 }: SummaryConfigModalProps) {
-  const { user } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-
-  // Config state
-  const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash-lite");
   const [customPrompt, setCustomPrompt] = useState("");
-  
-  // Custom API settings
-  const [apiMode, setApiMode] = useState<"default" | "custom">("default");
-  const [customApiUrl, setCustomApiUrl] = useState("");
-  const [customApiKey, setCustomApiKey] = useState("");
-  const [customModel, setCustomModel] = useState("");
 
   useEffect(() => {
     if (isOpen) {
-      if (user) {
-        setSelectedModel(user.preferredModel || "gemini-2.5-flash-lite");
-        setCustomApiUrl(user.customApiUrl || "");
-        setCustomModel(user.customModel || "");
-        // customApiKey logic handled by ModelSelector display, we just need to store edits
-        
-        const hasActiveCustomApi = user.customApiUrl && (user.hasCustomApiKey || user.customModel);
-        setApiMode(hasActiveCustomApi ? "custom" : "default");
-      }
       setCustomPrompt("");
     }
-  }, [isOpen, user]);
+  }, [isOpen]);
 
   // Add template text to custom prompt
   const addTemplate = (templateId: string) => {
@@ -96,17 +72,9 @@ export function SummaryConfigModal({
     setIsGenerating(true);
     try {
       const config: SummaryConfig = {
-        model: selectedModel,
+        model: "gemini-3-flash",
         customText: customPrompt.trim(),
       };
-
-      if (apiMode === "custom") {
-        config.customConfig = {
-          customApiUrl,
-          customApiKey,
-          customModel
-        };
-      }
 
       await onGenerate(config);
       onClose();
@@ -149,77 +117,53 @@ export function SummaryConfigModal({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="animate-spin text-[var(--primary)]" size={32} />
+          {/* Prompt Templates */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Quick Templates</label>
+            <p className="text-xs text-[var(--foreground-muted)] mb-3">
+              Click to add to your custom instructions
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {PROMPT_TEMPLATES.map((template) => {
+                const Icon = template.icon;
+                return (
+                  <button
+                    key={template.id}
+                    onClick={() => addTemplate(template.id)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${template.color} hover:opacity-80`}
+                  >
+                    <Icon size={14} />
+                    {template.label}
+                  </button>
+                );
+              })}
             </div>
-          ) : (
-            <>
-              {/* AI Model */}
-              <ModelSelector
-                apiMode={apiMode}
-                onApiModeChange={setApiMode}
-                selectedModel={selectedModel}
-                onModelSelect={setSelectedModel}
-                customApiUrl={customApiUrl}
-                onCustomApiUrlChange={setCustomApiUrl}
-                customApiKey={customApiKey}
-                onCustomApiKeyChange={setCustomApiKey}
-                customModel={customModel}
-                onCustomModelChange={setCustomModel}
-                user={user}
-                compact={true}
-              />
+          </div>
 
-              {/* Prompt Templates */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Quick Templates</label>
-                <p className="text-xs text-[var(--foreground-muted)] mb-3">
-                  Click to add to your custom instructions
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {PROMPT_TEMPLATES.map((template) => {
-                    const Icon = template.icon;
-                    return (
-                      <button
-                        key={template.id}
-                        onClick={() => addTemplate(template.id)}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${template.color} hover:opacity-80`}
-                      >
-                        <Icon size={14} />
-                        {template.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Custom Prompt */}
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Custom Instructions <span className="text-[var(--foreground-muted)] font-normal">(Optional)</span>
-                </label>
-                <textarea
-                  value={customPrompt}
-                  onChange={(e) => setCustomPrompt(e.target.value)}
-                  placeholder="Write instructions for the summary, e.g.:
+          {/* Custom Prompt */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Custom Instructions <span className="text-[var(--foreground-muted)] font-normal">(Optional)</span>
+            </label>
+            <textarea
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              placeholder="Write instructions for the summary, e.g.:
 • Focus on main concepts
 • Use bullet point format
 • Include important examples"
-                  className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm"
-                  rows={4}
-                />
-                {customPrompt.trim() && (
-                  <button
-                    onClick={() => setCustomPrompt("")}
-                    className="mt-2 text-xs text-[var(--foreground-muted)] hover:text-[var(--error)] transition-colors"
-                  >
-                    Clear all
-                  </button>
-                )}
-              </div>
-            </>
-          )}
+              className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm"
+              rows={4}
+            />
+            {customPrompt.trim() && (
+              <button
+                onClick={() => setCustomPrompt("")}
+                className="mt-2 text-xs text-[var(--foreground-muted)] hover:text-[var(--error)] transition-colors"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Footer */}

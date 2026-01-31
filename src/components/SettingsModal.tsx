@@ -1,10 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Loader2, Settings} from "lucide-react";
-import { authAPI } from "@/lib/api";
+import { X, Loader2, Settings, Zap, Check } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { ModelSelector } from "./ModelSelector";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -14,95 +12,16 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const { user, updateUser } = useAuth();
-  const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash-lite");
-  
-  // Default API (HaluAI Gateway) settings
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [maxTokens, setMaxTokens] = useState(1000);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [maxContext, setMaxContext] = useState(8000);
-  
-  // Custom API settings
-  const [customMaxTokens, setCustomMaxTokens] = useState(1000);
-  const [customMaxContext, setCustomMaxContext] = useState(8000);
-  
-  const [apiMode, setApiMode] = useState<"default" | "custom">("default");
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [savedApiMode, setSavedApiMode] = useState<"default" | "custom">("default"); // Track saved mode
-  const [customApiUrl, setCustomApiUrl] = useState("");
-  const [customApiKey, setCustomApiKey] = useState("");
-  const [customModel, setCustomModel] = useState("");
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     if (isOpen && user) {
       setIsLoading(true);
-      setSelectedModel(user.preferredModel || "gemini-2.5-flash-lite");
-      
-      // Initialize default API settings
-      setMaxTokens(user.maxTokens || 1000);
-      setMaxContext(user.maxContext || 8000);
-      
-      // Initialize custom API settings
-      setCustomMaxTokens(user.customMaxTokens || 1000);
-      setCustomMaxContext(user.customMaxContext || 8000);
-      setCustomApiUrl(user.customApiUrl || "");
-      setCustomModel(user.customModel || "");
-      // Don't reset customApiKey if user already typed something
-      
-      // Determine API mode based on saved settings
-      // Check if user has actively chosen custom API (has URL AND either key or model)
-      const hasActiveCustomApi = user.customApiUrl && (user.hasCustomApiKey || user.customModel);
-      const determinedMode = hasActiveCustomApi ? "custom" : "default";
-      
-      setApiMode(determinedMode);
-      setSavedApiMode(determinedMode);
-      setIsLoading(false);
+      // Simple loading state
+      setTimeout(() => setIsLoading(false), 300);
     }
   }, [isOpen, user]);
-
-  const handleSave = async () => {
-    if (!user) return;
-    setIsSaving(true);
-    setError("");
-    try {
-      const updateData: Record<string, unknown> = {
-        preferredModel: selectedModel,
-      };
-
-      if (apiMode === "custom") {
-        // Save custom API settings
-        updateData.customApiUrl = customApiUrl || "";
-        if (customApiKey) {
-          updateData.customApiKey = customApiKey;
-        }
-        updateData.customModel = customModel || "";
-        updateData.customMaxTokens = customMaxTokens;
-        updateData.customMaxContext = customMaxContext;
-      } else {
-        // Save default API settings with optimal defaults
-        updateData.maxTokens = 4000; // Force 4000 tokens for optimal performance
-        updateData.maxContext = 500000; // Set to 500k for HaluAI Gateway
-        // IMPORTANT: Clear custom API settings when switching to default
-        // This ensures the backend knows to use HaluAI Gateway
-        updateData.customApiUrl = "";
-        updateData.customModel = "";
-        updateData.customApiKey = ""; // Clear the API key too
-      }
-
-      const { user: updatedUser } = await authAPI.updateSettings(updateData as Parameters<typeof authAPI.updateSettings>[0]);
-      updateUser(updatedUser);
-      setSavedApiMode(apiMode); // Update saved mode after successful save
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save settings");
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   if (!isOpen) return null;
 
@@ -119,7 +38,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             </div>
             <div>
               <h2 className="text-lg font-semibold">Settings</h2>
-              <p className="text-xs text-[var(--foreground-muted)]">Configure AI preferences</p>
+              <p className="text-xs text-[var(--foreground-muted)]">AI Configuration</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-[var(--surface-hover)] rounded-lg transition-colors">
@@ -135,56 +54,51 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             </div>
           ) : (
             <>
-              <ModelSelector
-                apiMode={apiMode}
-                onApiModeChange={setApiMode}
-                selectedModel={selectedModel}
-                onModelSelect={setSelectedModel}
-                customApiUrl={customApiUrl}
-                onCustomApiUrlChange={setCustomApiUrl}
-                customApiKey={customApiKey}
-                onCustomApiKeyChange={setCustomApiKey}
-                customModel={customModel}
-                onCustomModelChange={setCustomModel}
-                customMaxTokens={customMaxTokens}
-                onCustomMaxTokensChange={setCustomMaxTokens}
-                customMaxContext={customMaxContext}
-                onCustomMaxContextChange={setCustomMaxContext}
-                user={user}
-              />
-            </>
-          )}
+              {/* AI Model Display - Fixed to Gemini 3 Flash */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium">AI Model</label>
+                <div className="w-full flex items-center justify-between p-4 rounded-xl border border-[var(--primary)] bg-[var(--primary-light)]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600">
+                      <Zap size={20} className="text-white" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-semibold">Gemini 3 Flash</p>
+                      <p className="text-sm text-[var(--foreground-muted)]">Next-gen speed with enhanced logic</p>
+                    </div>
+                  </div>
+                  <div className="w-6 h-6 rounded-full bg-[var(--primary)] flex items-center justify-center">
+                    <Check size={14} className="text-white" />
+                  </div>
+                </div>
+                <p className="text-xs text-[var(--foreground-muted)]">
+                  LearnLens uses Gemini 3 Flash for all AI features. This model provides the best balance of speed and intelligence.
+                </p>
+              </div>
 
-          {error && (
-            <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">
-              {error}
-            </p>
+              {/* Info Section */}
+              <div className="bg-[var(--background)] rounded-xl p-4 border border-[var(--border)]">
+                <h3 className="text-sm font-medium mb-2">About AI Features</h3>
+                <ul className="text-xs text-[var(--foreground-muted)] space-y-1.5">
+                  <li>• Chat with your materials for explanations</li>
+                  <li>• Generate summaries and key concepts</li>
+                  <li>• Create quizzes to test understanding</li>
+                  <li>• Build flashcards for memorization</li>
+                  <li>• Generate mind maps and study plans</li>
+                </ul>
+              </div>
+            </>
           )}
         </div>
 
         {/* Footer */}
-        <div className="border-t border-[var(--border)] px-6 py-4 flex gap-3">
+        <div className="border-t border-[var(--border)] px-6 py-4">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 px-4 py-2.5 border border-[var(--border)] rounded-xl hover:bg-[var(--surface-hover)] transition-colors font-medium text-sm"
+            className="w-full px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl hover:bg-[var(--primary-hover)] transition-colors font-medium text-sm"
           >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isSaving}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-colors font-medium text-sm"
-          >
-            {isSaving ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                Saving...
-              </>
-            ) : (
-              "Save Changes"
-            )}
+            Close
           </button>
         </div>
       </div>

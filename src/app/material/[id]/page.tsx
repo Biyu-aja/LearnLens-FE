@@ -31,7 +31,7 @@ import { SettingsModal } from "@/components/SettingsModal";
 import { QuizConfigModal, QuizConfig } from "@/components/QuizConfigModal";
 import { SummaryConfigModal, SummaryConfig } from "@/components/SummaryConfigModal";
 import { MaterialOptionsModal } from "@/components/MaterialOptionsModal";
-import { materialsAPI, chatAPI, aiAPI, analyticsAPI, Material, MaterialSummary, Message, Quiz, GlossaryTerm, Flashcard, CustomConfig } from "@/lib/api";
+import { materialsAPI, chatAPI, aiAPI, analyticsAPI, Material, MaterialSummary, Message, Quiz, GlossaryTerm, Flashcard } from "@/lib/api";
 import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { PublishConfigModal } from "@/components/PublishConfigModal";
 import { AILanguage } from "@/components/MaterialOptionsModal";
@@ -520,10 +520,10 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
     await fetchMaterials();
   };
 
-  const handleGenerateGlossary = async (config?: { model?: string; customConfig?: CustomConfig }) => {
+  const handleGenerateGlossary = async (config?: { model?: string }) => {
     setIsGlossaryLoading(true);
     try {
-      const response = await aiAPI.generateGlossary(id, config?.model, aiLanguage, config?.customConfig);
+      const response = await aiAPI.generateGlossary(id, config?.model || "gemini-3-flash", aiLanguage);
       setGlossary(response.glossary);
       setActiveTab("glossary");
     } catch (error) {
@@ -565,10 +565,10 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
     }
   };
 
-  const handleGenerateFlashcards = async (config?: { model?: string; customConfig?: CustomConfig }) => {
+  const handleGenerateFlashcards = async (config?: { model?: string }) => {
     setIsFlashcardsLoading(true);
     try {
-      const response = await aiAPI.generateFlashcards(id, 10, aiLanguage, config?.model, config?.customConfig);
+      const response = await aiAPI.generateFlashcards(id, 10, aiLanguage, config?.model || "gemini-3-flash");
       setFlashcards(response.flashcards);
       setActiveTab("flashcards");
     } catch (error) {
@@ -785,7 +785,7 @@ export default function MaterialPage({ params }: { params: Promise<{ id: string 
               hasGlossary={!!glossary && glossary.length > 0}
               hasFlashcards={!!flashcards && flashcards.length > 0}
               language={aiLanguage}
-              onLanguageChange={setAiLanguage}
+              onLanguageChange={(lang) => setAiLanguage(lang as AILanguage)}
               initialInput={chatInitialInput}
             />
           )}
